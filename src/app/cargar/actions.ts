@@ -1,0 +1,38 @@
+"use server";
+
+import { auth } from "@/auth";
+import { parseBankExcel } from "@/lib/parse-bank-excel";
+import {
+  procesarMovimientosBancarios,
+  type ResumenCarga,
+} from "@/lib/procesar-movimientos";
+
+export type ResultadoCarga =
+  | { ok: true; resumen: ResumenCarga }
+  | { ok: false; error: string };
+
+export async function cargarEstadoCuenta(
+  _prev: ResultadoCarga | undefined,
+  formData: FormData
+): Promise<ResultadoCarga> {
+  const session = await auth();
+  if (session?.user.rol !== "admin") {
+    return { ok: false, error: "No autorizado." };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo Excel." };
+  }
+
+  try {
+    const buffer = Buffer.from(await archivo.arrayBuffer());
+    const filas = parseBankExcel(buffer);
+    const resumen = await procesarMovimientosBancarios(filas);
+    return { ok: true, resumen };
+  } catch (error) {
+    const mensaje =
+      error instanceof Error ? error.message : "Error inesperado al procesar el archivo.";
+    return { ok: false, error: mensaje };
+  }
+}
