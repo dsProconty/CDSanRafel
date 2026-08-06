@@ -37,8 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# datos reales del cliente (contienen nombres/cédulas) - no se versionan
+# datos reales del cliente (contienen nombres/cédulas, info confidencial) - no se versionan
 /data/*.xlsx
+/data/*.docx
 
 # typescript
 *.tsbuildinfo
