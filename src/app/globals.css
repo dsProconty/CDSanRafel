@@ -1,23 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --radius: 0.625rem;
-  --background: #ffffff;
-  --foreground: #171717;
+  --radius: 0.9rem;
+
+  /* Papel marfil cálido + tinta */
+  --background: #faf5ec;
+  --foreground: #2a211c;
+
   --card: #ffffff;
-  --card-foreground: #171717;
-  --primary: #171717;
-  --primary-foreground: #fafafa;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5;
-  --accent-foreground: #171717;
-  --destructive: #e7000b;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #a1a1a1;
+  --card-foreground: #2a211c;
+
+  /* Ciruela/orquídea profundo */
+  --primary: #7a2e52;
+  --primary-foreground: #fdf1f6;
+
+  /* Verde botánico */
+  --secondary: #2e4a38;
+  --secondary-foreground: #eff6f1;
+
+  --muted: #f0e7d8;
+  --muted-foreground: #7c7364;
+
+  --accent: #f4e1ec;
+  --accent-foreground: #7a2e52;
+
+  --destructive: #a63a2c;
+  --destructive-foreground: #fdf1ec;
+
+  --border: #e7dcc7;
+  --input: #e7dcc7;
+  --ring: #7a2e52;
+
+  /* Panel de marca: fijo, no se invierte con el tema del sistema */
+  --brand-panel: #7a2e52;
+  --brand-panel-foreground: #fdf1f6;
 }
 
 @theme inline {
@@ -34,40 +50,80 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-brand-panel: var(--brand-panel);
+  --color-brand-panel-foreground: var(--brand-panel-foreground);
+  --radius-sm: calc(var(--radius) - 5px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
+  --radius-xl: calc(var(--radius) + 5px);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --card: #171717;
-    --card-foreground: #ededed;
-    --primary: #ededed;
-    --primary-foreground: #171717;
-    --secondary: #262626;
-    --secondary-foreground: #ededed;
-    --muted: #262626;
-    --muted-foreground: #a1a1a1;
-    --accent: #262626;
-    --accent-foreground: #ededed;
-    --destructive: #ff6467;
-    --border: #ffffff1a;
-    --input: #ffffff26;
-    --ring: #737373;
+    --background: #1e1420;
+    --foreground: #f3e9ee;
+
+    --card: #291b28;
+    --card-foreground: #f3e9ee;
+
+    --primary: #eaacc9;
+    --primary-foreground: #2a1220;
+
+    --secondary: #82ab8e;
+    --secondary-foreground: #142418;
+
+    --muted: #382736;
+    --muted-foreground: #c3b0c1;
+
+    --accent: #382736;
+    --accent-foreground: #eaacc9;
+
+    --destructive: #e2917e;
+    --destructive-foreground: #2a1220;
+
+    --border: #493447;
+    --input: #493447;
+    --ring: #eaacc9;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Textura de grano sutil para paneles decorativos */
+.grain-overlay {
+  position: relative;
+}
+.grain-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
