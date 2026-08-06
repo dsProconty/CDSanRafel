@@ -6,6 +6,7 @@ import { db } from "@/db";
 import {
   casas,
   catalogoReferenciasBancarias,
+  deudas,
   movimientosBancarios,
 } from "@/db/schema";
 import { OrchidMark } from "@/components/orchid-mark";
@@ -76,9 +77,14 @@ async function ResumenAdmin() {
             de casas.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/cargar">Cargar estado de cuenta</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/pendientes">Revisar pendientes</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/cargar">Cargar estado de cuenta</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-4 sm:max-w-2xl sm:grid-cols-3">
@@ -104,20 +110,26 @@ async function ResumenAdmin() {
             Abonos automáticos
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+        <Link
+          href="/pendientes"
+          className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm transition-colors hover:bg-accent"
+        >
           <p className="font-display text-4xl font-medium text-foreground">
             {pendienteRevision}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Pendientes de revisión
           </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+        </Link>
+        <Link
+          href="/pendientes"
+          className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm transition-colors hover:bg-accent"
+        >
           <p className="font-display text-4xl font-medium text-foreground">
             {sinCatalogar}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">Sin catalogar</p>
-        </div>
+        </Link>
       </div>
     </section>
   );
@@ -133,6 +145,15 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
     .select({ totalAbonado: sum(movimientosBancarios.monto) })
     .from(movimientosBancarios)
     .where(eq(movimientosBancarios.casaId, casaId));
+  const [{ totalDeudas }] = await db
+    .select({ totalDeudas: sum(deudas.monto) })
+    .from(deudas)
+    .where(eq(deudas.casaId, casaId));
+
+  const abonado = Number(totalAbonado ?? 0);
+  const deuda = Number(totalDeudas ?? 0);
+  const saldo = deuda - abonado;
+  const alDia = saldo <= 0;
 
   return (
     <section className="animate-rise">
@@ -143,16 +164,30 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
         Casa {casa.numero}
       </h2>
       <div className="mt-8 max-w-md rounded-xl border border-border bg-card px-6 py-6 shadow-sm">
-        <p className="font-display text-3xl font-medium text-primary">
-          ${Number(totalAbonado ?? 0).toFixed(2)}
+        <p
+          className={`font-display text-3xl font-medium ${alDia ? "text-secondary" : "text-destructive"}`}
+        >
+          {alDia
+            ? `$${Math.abs(saldo).toFixed(2)} a favor`
+            : `$${saldo.toFixed(2)} pendiente`}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Total abonado (pagos confirmados automáticamente)
+          {alDia ? "Estás al día" : "Saldo pendiente de pago"}
         </p>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          El saldo (deudas − abonos) y el detalle de expensas se habilitan en
-          el Sprint 3.
-        </p>
+        <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
+          <div>
+            <dt className="text-muted-foreground">Deudas</dt>
+            <dd className="mt-0.5 font-medium text-foreground">
+              ${deuda.toFixed(2)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Abonado</dt>
+            <dd className="mt-0.5 font-medium text-foreground">
+              ${abonado.toFixed(2)}
+            </dd>
+          </div>
+        </dl>
       </div>
     </section>
   );
