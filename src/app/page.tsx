@@ -77,7 +77,13 @@ async function ResumenAdmin() {
             de casas.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/casas">Casas</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/deudas/masiva">Crear deuda masiva</Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/pendientes">Revisar pendientes</Link>
           </Button>
