@@ -17,11 +17,12 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="callbackUrl" value={callbackUrl} />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="identificador">Casa o email</Label>
+        <Label htmlFor="email">Correo electrónico</Label>
         <Input
-          id="identificador"
-          name="identificador"
-          placeholder="36A"
+          id="email"
+          name="email"
+          type="email"
+          placeholder="tucorreo@ejemplo.com"
           required
           autoFocus
         />

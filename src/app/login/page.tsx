@@ -43,8 +43,8 @@ export default function LoginPage({
             Ingresar
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Propietarios: número de casa. Administrador: correo. La
-            contraseña inicial es tu cédula.
+            Ingresa con tu correo electrónico. La contraseña inicial es tu
+            cédula.
           </p>
 
           <div className="mt-8">
