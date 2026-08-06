@@ -14,7 +14,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="callbackUrl" value={callbackUrl} />
       <div className="flex flex-col gap-2">
         <Label htmlFor="identificador">Casa o email</Label>
@@ -27,12 +27,16 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">Contraseña</Label>
         <Input id="password" name="password" type="password" required />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={pending} className="mt-2">
-        {pending ? "Ingresando..." : "Ingresar"}
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <Button type="submit" disabled={pending} size="lg" className="mt-2">
+        {pending ? "Ingresando…" : "Ingresar"}
       </Button>
     </form>
   );
