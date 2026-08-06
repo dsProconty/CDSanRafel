@@ -1,0 +1,78 @@
+"use client";
+
+import { useActionState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { cargarEstadoCuenta, type ResultadoCarga } from "./actions";
+
+export function UploadForm() {
+  const [resultado, formAction, pending] = useActionState<
+    ResultadoCarga | undefined,
+    FormData
+  >(cargarEstadoCuenta, undefined);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4">
+      <input
+        type="file"
+        name="archivo"
+        accept=".xlsx"
+        required
+        className="rounded-lg border border-input bg-background px-3 py-2 text-sm file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
+      />
+      <Button type="submit" disabled={pending} className="self-start">
+        {pending ? "Procesando…" : "Cargar y procesar"}
+      </Button>
+
+      {resultado && !resultado.ok && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {resultado.error}
+        </p>
+      )}
+
+      {resultado?.ok && (
+        <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Stat label="Créditos en el archivo" value={resultado.resumen.creditos} />
+          <Stat label="Duplicados (ya cargados)" value={resultado.resumen.duplicados} />
+          <Stat label="Débitos (no procesados)" value={resultado.resumen.debitos} />
+          <Stat
+            label="Abonos automáticos"
+            value={resultado.resumen.matchedAutomatico}
+            destacado
+          />
+          <Stat
+            label="Pendientes de revisión"
+            value={resultado.resumen.pendienteRevision}
+            destacado
+          />
+          <Stat
+            label="Sin catalogar"
+            value={resultado.resumen.sinCatalogar}
+            destacado
+          />
+        </div>
+      )}
+    </form>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  destacado,
+}: {
+  label: string;
+  value: number;
+  destacado?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+      <p
+        className={`font-display text-2xl font-medium ${destacado ? "text-primary" : "text-foreground"}`}
+      >
+        {value}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}

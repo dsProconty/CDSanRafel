@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverActions: {
+      // El Excel del banco puede traer varios meses de movimientos.
+      bodySizeLimit: "5mb",
+    },
+  },
 };
 
 export default nextConfig;
