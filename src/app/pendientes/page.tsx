@@ -106,12 +106,9 @@ export default async function PendientesPage() {
           {pendientes.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">Sin pendientes.</p>
           ) : (
-            <ul className="mt-4 flex flex-col gap-3">
+            <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-card">
               {pendientes.map((mov) => (
-                <li
-                  key={mov.id}
-                  className="rounded-lg border border-border bg-card px-5 py-4"
-                >
+                <div key={mov.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-lg font-semibold text-foreground">
                       ${Number(mov.monto).toFixed(2)}
@@ -133,9 +130,9 @@ export default async function PendientesPage() {
                       />
                     ))}
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
@@ -151,12 +148,9 @@ export default async function PendientesPage() {
           {sinCatalogar.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">Sin pendientes.</p>
           ) : (
-            <ul className="mt-4 flex flex-col gap-3">
+            <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-card">
               {sinCatalogar.map((mov) => (
-                <li
-                  key={mov.id}
-                  className="rounded-lg border border-border bg-card px-5 py-4"
-                >
+                <div key={mov.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-lg font-semibold text-foreground">
                       ${Number(mov.monto).toFixed(2)}
@@ -171,9 +165,9 @@ export default async function PendientesPage() {
                   <div className="mt-3">
                     <FormAsignarManual movimientoId={mov.id} />
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       </div>

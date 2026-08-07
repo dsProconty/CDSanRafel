@@ -139,38 +139,45 @@ export default async function CasaDetallePage({
               estado de cuenta del banco.
             </p>
           ) : (
-            <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
+            <div className="mt-3 flex flex-wrap gap-2">
               {referencias.map((r) => (
-                <li key={r.id}>{r.referencia}</li>
+                <Badge key={r.id} variant="outline">
+                  {r.referencia}
+                </Badge>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
         <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground">Deudas</h2>
+          <h2 className="text-sm font-semibold text-foreground">
+            Deudas ({listaDeudas.length})
+          </h2>
           <FormDeuda casaId={casa.id} tipos={tipos} />
           {listaDeudas.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">
               Sin deudas registradas.
             </p>
           ) : (
-            <ul className="mt-4 flex flex-col gap-2">
+            <div className="mt-4 divide-y divide-border rounded-lg border border-border">
               {listaDeudas.map((d) => (
-                <li
+                <div
                   key={d.id}
-                  className="flex justify-between rounded-md border border-border px-3 py-2 text-sm"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
                 >
-                  <span className="text-foreground">
-                    {d.tipo} · {d.fecha}
-                    {d.descripcion ? ` · ${d.descripcion}` : ""}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{d.tipo}</Badge>
+                    <span className="text-muted-foreground">
+                      {d.fecha}
+                      {d.descripcion ? ` · ${d.descripcion}` : ""}
+                    </span>
+                  </div>
                   <span className="font-medium text-foreground">
                     ${Number(d.monto).toFixed(2)}
                   </span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       </div>
