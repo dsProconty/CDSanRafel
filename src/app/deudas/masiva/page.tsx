@@ -43,6 +43,7 @@ export default async function DeudaMasivaPage() {
     casasAfectadas: l.casasAfectadas,
     usuarioEmail: l.usuarioEmail,
     anulada: l.anuladoEn !== null,
+    automatica: l.recurrenteId !== null,
   }));
 
   return (
@@ -60,12 +61,14 @@ export default async function DeudaMasivaPage() {
                 aplicás.
               </p>
             </div>
-            <Link
-              href="/deudas/conceptos"
-              className="shrink-0 text-sm font-medium text-primary hover:underline"
-            >
-              Gestionar catálogo de conceptos
-            </Link>
+            <div className="flex shrink-0 flex-col items-end gap-1 text-sm font-medium">
+              <Link href="/deudas/conceptos" className="text-primary hover:underline">
+                Gestionar catálogo de conceptos
+              </Link>
+              <Link href="/deudas/recurrentes" className="text-primary hover:underline">
+                ¿Es recurrente? Programala acá
+              </Link>
+            </div>
           </div>
         </div>
         <div className="mt-6 rounded-lg border border-border bg-card px-6 py-6">

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/generar-deudas-recurrentes",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

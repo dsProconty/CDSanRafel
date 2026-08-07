@@ -8,11 +8,12 @@ import { anularLoteDeudaMasiva, type LoteDeudaMasiva } from "./actions";
 
 export type FilaLote = Omit<
   LoteDeudaMasiva,
-  "createdAt" | "anuladoEn" | "conceptoNombre" | "tipoNombre"
+  "createdAt" | "anuladoEn" | "conceptoNombre" | "tipoNombre" | "recurrenteId"
 > & {
   fechaCreacion: string;
   anulada: boolean;
   concepto: string;
+  automatica: boolean;
 };
 
 export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
@@ -46,7 +47,16 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
               <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                 {f.fecha}
               </td>
-              <td className="px-4 py-3 text-foreground">{f.concepto}</td>
+              <td className="px-4 py-3 text-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  {f.concepto}
+                  {f.automatica && (
+                    <Badge variant="info" className="text-[10px]">
+                      Auto
+                    </Badge>
+                  )}
+                </span>
+              </td>
               <td className="px-4 py-3 text-foreground">
                 ${Number(f.monto).toFixed(2)}
               </td>

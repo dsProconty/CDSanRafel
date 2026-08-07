@@ -101,6 +101,7 @@ export type LoteDeudaMasiva = {
   casasAfectadas: number;
   usuarioEmail: string | null;
   anuladoEn: Date | null;
+  recurrenteId: number | null;
 };
 
 export async function obtenerLotesDeudaMasiva(): Promise<LoteDeudaMasiva[]> {
@@ -120,6 +121,7 @@ export async function obtenerLotesDeudaMasiva(): Promise<LoteDeudaMasiva[]> {
       casasAfectadas: deudaMasivaLotes.casasAfectadas,
       usuarioEmail: usuarios.email,
       anuladoEn: deudaMasivaLotes.anuladoEn,
+      recurrenteId: deudaMasivaLotes.recurrenteId,
     })
     .from(deudaMasivaLotes)
     .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudaMasivaLotes.tipoExpensaId))

@@ -120,6 +120,47 @@ export const conceptosDeuda = pgTable(
   (table) => [uniqueIndex("conceptos_deuda_nombre_idx").on(table.nombre)]
 );
 
+// Plan de deuda que se repite mes a mes (alícuota ordinaria indefinida, o
+// una cuota extraordinaria dividida en N meses). `periodosGenerados` lleva
+// la cuenta de cuántos meses ya se generaron; `totalPeriodos` null = sigue
+// indefinidamente hasta que se pause. El cron (o "Generar ahora") crea una
+// fila en `deuda_masiva_lotes` por cada período, referenciada por `recurrenteId`.
+export const deudaRecurrente = pgTable("deuda_recurrente", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  conceptoId: integer("concepto_id")
+    .notNull()
+    .references(() => conceptosDeuda.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  descripcion: text("descripcion"),
+  fechaInicio: date("fecha_inicio").notNull(),
+  totalPeriodos: integer("total_periodos"),
+  periodosGenerados: integer("periodos_generados").notNull().default(0),
+  activo: boolean("activo").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Casas excluidas de un plan de deuda recurrente (se excluyen en todos los
+// períodos que ese plan vaya generando, no solo en el primero).
+export const deudaRecurrenteExclusion = pgTable(
+  "deuda_recurrente_exclusion",
+  {
+    id: serial("id").primaryKey(),
+    recurrenteId: integer("recurrente_id")
+      .notNull()
+      .references(() => deudaRecurrente.id),
+    casaId: integer("casa_id")
+      .notNull()
+      .references(() => casas.id),
+  },
+  (table) => [
+    uniqueIndex("deuda_recurrente_exclusion_idx").on(
+      table.recurrenteId,
+      table.casaId
+    ),
+  ]
+);
+
 // Corridas de "deuda masiva": registra quién, cuándo y con qué parámetros
 // se generó una deuda para todo el catálogo (o catálogo menos exclusiones).
 // `deudas.loteId` referencia esta tabla para poder auditar y anular la corrida.
@@ -127,6 +168,7 @@ export const deudaMasivaLotes = pgTable("deuda_masiva_lotes", {
   id: serial("id").primaryKey(),
   usuarioId: integer("usuario_id").references(() => usuarios.id),
   conceptoId: integer("concepto_id").references(() => conceptosDeuda.id),
+  recurrenteId: integer("recurrente_id").references(() => deudaRecurrente.id),
   tipoExpensaId: integer("tipo_expensa_id")
     .notNull()
     .references(() => tiposExpensa.id),

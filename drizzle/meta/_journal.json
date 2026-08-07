@@ -36,6 +36,13 @@
       "when": 1786136743473,
       "tag": "0004_breezy_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786141041251,
+      "tag": "0005_tidy_roughhouse",
+      "breakpoints": true
     }
   ]
 }
