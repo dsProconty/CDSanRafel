@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LayoutGrid, List, Pencil, Search } from "lucide-react";
+import { ArrowLeftRight, LayoutGrid, List, Pencil, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { CasaModal } from "./casa-modal";
+import { TransaccionesModal } from "./transacciones-modal";
 
 export type EstadoCasa = "ok" | "due" | "none";
 export type TipoResidente = "propietario" | "arrendatario" | "familiar";
@@ -64,6 +65,7 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
   const [bloque, setBloque] = useState<Bloque>("A");
   const [busqueda, setBusqueda] = useState("");
   const [casaAbierta, setCasaAbierta] = useState<string | null>(null);
+  const [casaTransacciones, setCasaTransacciones] = useState<string | null>(null);
 
   const filtradas = useMemo(() => {
     const porBloque = casas.filter((c) => esDelBloque(c, bloque));
@@ -249,6 +251,14 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                     <div className="flex items-center justify-end gap-3">
                       <button
                         type="button"
+                        onClick={() => setCasaTransacciones(f.numero)}
+                        title="Transacciones"
+                        className="text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ArrowLeftRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setCasaAbierta(f.numero)}
                         title="Editar"
                         className="text-muted-foreground transition-colors hover:text-foreground"
@@ -276,6 +286,12 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
 
       {casaAbierta && (
         <CasaModal numero={casaAbierta} onClose={() => setCasaAbierta(null)} />
+      )}
+      {casaTransacciones && (
+        <TransaccionesModal
+          numero={casaTransacciones}
+          onClose={() => setCasaTransacciones(null)}
+        />
       )}
     </div>
   );

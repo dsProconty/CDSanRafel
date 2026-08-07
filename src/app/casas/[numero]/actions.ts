@@ -128,6 +128,47 @@ export async function obtenerDetalleCasa(
   };
 }
 
+export type PagosCasaData = {
+  casa: { numero: string; bloque: string };
+  pagos: {
+    id: number;
+    documento: string;
+    fecha: string;
+    monto: string;
+    concepto: string | null;
+  }[];
+};
+
+export async function obtenerPagosCasa(
+  numero: string
+): Promise<PagosCasaData | null> {
+  await requireAdmin();
+
+  const [casa] = await db
+    .select({ id: casas.id, numero: casas.numero, bloque: casas.bloque })
+    .from(casas)
+    .where(eq(casas.numero, numero))
+    .limit(1);
+  if (!casa) return null;
+
+  const pagos = await db
+    .select({
+      id: movimientosBancarios.id,
+      documento: movimientosBancarios.documento,
+      fecha: movimientosBancarios.fechaTransaccion,
+      monto: movimientosBancarios.monto,
+      concepto: movimientosBancarios.concepto,
+    })
+    .from(movimientosBancarios)
+    .where(eq(movimientosBancarios.casaId, casa.id))
+    .orderBy(desc(movimientosBancarios.fechaTransaccion));
+
+  return {
+    casa: { numero: casa.numero, bloque: casa.bloque },
+    pagos,
+  };
+}
+
 export async function actualizarPropietario(casaId: number, propietario: string) {
   await requireAdmin();
   await db
