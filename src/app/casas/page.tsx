@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { casas } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { StatPill } from "@/components/ui/stat-pill";
 
 const BLOQUES = ["A", "B", "Otros"] as const;
 
@@ -33,13 +34,31 @@ export default async function CasasPage({
       : todas.filter((c) => c.bloque === bloqueActivo)
   ).sort(porNumero);
 
+  const contarBloque = (b: (typeof BLOQUES)[number]) =>
+    b === "Otros"
+      ? todas.filter((c) => c.bloque !== "A" && c.bloque !== "B").length
+      : todas.filter((c) => c.bloque === b).length;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
-        <h1 className="text-xl font-semibold text-foreground">Casas</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {todas.length} casas en total.
-        </p>
+        <div className="border-b border-border pb-6">
+          <h1 className="text-xl font-semibold text-foreground">Casas</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Catálogo de casas y referencias bancarias.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatPill label="total" value={todas.length} color="muted" />
+            {BLOQUES.map((b) => (
+              <StatPill
+                key={b}
+                label={b === "Otros" ? "otros" : `bloque ${b}`}
+                value={contarBloque(b)}
+                color={b === bloqueActivo ? "primary" : "muted"}
+              />
+            ))}
+          </div>
+        </div>
 
         <div className="mt-6 flex gap-2">
           {BLOQUES.map((b) => (

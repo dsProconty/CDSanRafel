@@ -21,13 +21,15 @@ export default async function DeudaMasivaPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl px-6 py-8 lg:px-10">
-        <h1 className="text-xl font-semibold text-foreground">
-          Crear deuda para todas las casas
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Se crea una deuda igual para todas las casas del catálogo. Úsalo
-          para la alícuota mensual o para cuotas extraordinarias.
-        </p>
+        <div className="border-b border-border pb-6">
+          <h1 className="text-xl font-semibold text-foreground">
+            Crear deuda para todas las casas
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Se crea una deuda igual para todas las casas del catálogo. Úsalo
+            para la alícuota mensual o para cuotas extraordinarias.
+          </p>
+        </div>
         <div className="mt-6 rounded-lg border border-border bg-card px-6 py-6">
           <FormDeudaMasiva tipos={tipos} />
         </div>

@@ -2,16 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
-export function SidebarNav({
-  items,
-}: {
-  items: { href: string; label: string }[];
-}) {
+export type SidebarNavItem = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+};
+
+export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5 px-3 py-2">
+      <p className="px-3 pb-2 text-xs font-semibold tracking-wider text-sidebar-foreground/50">
+        PRINCIPAL
+      </p>
       {items.map((item) => {
         const active =
           item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -19,12 +25,13 @@ export function SidebarNav({
           <Link
             key={item.href}
             href={item.href}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               active
                 ? "bg-sidebar-accent text-sidebar-foreground-active"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground-active"
             }`}
           >
+            {item.icon}
             {item.label}
           </Link>
         );

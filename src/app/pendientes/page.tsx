@@ -9,6 +9,7 @@ import {
   movimientosBancarios,
 } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { StatPill } from "@/components/ui/stat-pill";
 import { BotonCandidato } from "./boton-candidato";
 import { FormAsignarManual } from "./form-asignar-manual";
 
@@ -71,13 +72,27 @@ export default async function PendientesPage() {
       </datalist>
 
       <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
-        <h1 className="text-xl font-semibold text-foreground">
-          Pendientes de revisión
-        </h1>
-        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-          Pagos que no se pudieron abonar automáticamente. Asignar aquí
-          actualiza el estado de cuenta al instante.
-        </p>
+        <div className="border-b border-border pb-6">
+          <h1 className="text-xl font-semibold text-foreground">
+            Pendientes de revisión
+          </h1>
+          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+            Pagos que no se pudieron abonar automáticamente. Asignar aquí
+            actualiza el estado de cuenta al instante.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatPill
+              label="varias casas coinciden"
+              value={pendientes.length}
+              color="warning"
+            />
+            <StatPill
+              label="sin catalogar"
+              value={sinCatalogar.length}
+              color="destructive"
+            />
+          </div>
+        </div>
 
         <section className="mt-8">
           <h2 className="text-base font-semibold text-foreground">

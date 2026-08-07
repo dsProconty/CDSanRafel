@@ -13,6 +13,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { FormDeuda } from "./form-deuda";
 import { FormPropietario } from "./form-propietario";
 import { FormUsuario } from "./form-usuario";
@@ -86,7 +87,7 @@ export default async function CasaDetallePage({
           ← Volver a casas
         </Link>
 
-        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-6">
           <div>
             <h1 className="text-xl font-semibold text-foreground">
               Casa {casa.numero}
@@ -95,13 +96,18 @@ export default async function CasaDetallePage({
               Bloque {casa.bloque}
             </p>
           </div>
-          <p
-            className={`text-lg font-semibold ${alDia ? "text-success" : "text-destructive"}`}
-          >
-            {alDia
-              ? `$${Math.abs(saldo).toFixed(2)} a favor`
-              : `$${saldo.toFixed(2)} pendiente`}
-          </p>
+          <div className="flex flex-col items-end gap-1.5">
+            <p
+              className={`text-lg font-semibold ${alDia ? "text-success" : "text-destructive"}`}
+            >
+              {alDia
+                ? `$${Math.abs(saldo).toFixed(2)} a favor`
+                : `$${saldo.toFixed(2)} pendiente`}
+            </p>
+            <Badge variant={alDia ? "success" : "destructive"}>
+              {alDia ? "Al día" : "Pendiente"}
+            </Badge>
+          </div>
         </div>
 
         <section className="mt-8 rounded-lg border border-border bg-card px-6 py-5">

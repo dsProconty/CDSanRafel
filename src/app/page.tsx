@@ -11,6 +11,8 @@ import {
 } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { StatPill } from "@/components/ui/stat-pill";
+import { Badge } from "@/components/ui/badge";
 
 export default async function HomePage() {
   const session = await auth();
@@ -22,15 +24,6 @@ export default async function HomePage() {
         {user.rol === "admin" ? <ResumenAdmin /> : <ResumenCasa casaId={user.casaId} />}
       </div>
     </AppShell>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card px-5 py-4">
-      <p className="text-2xl font-semibold text-foreground">{value}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{label}</p>
-    </div>
   );
 }
 
@@ -55,7 +48,7 @@ async function ResumenAdmin() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -68,16 +61,26 @@ async function ResumenAdmin() {
         </Button>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Casas" value={totalCasas} />
-        <StatCard label="Referencias bancarias" value={totalReferencias} />
-        <StatCard label="Abonos automáticos" value={matched} />
-        <Link href="/pendientes">
-          <StatCard label="Pendientes de revisión" value={pendienteRevision} />
-        </Link>
-        <Link href="/pendientes">
-          <StatCard label="Sin catalogar" value={sinCatalogar} />
-        </Link>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <StatPill label="casas" value={totalCasas} color="muted" />
+        <StatPill
+          label="referencias bancarias"
+          value={totalReferencias}
+          color="muted"
+        />
+        <StatPill label="Abonos automáticos" value={matched} color="success" />
+        <StatPill
+          label="Pendientes de revisión"
+          value={pendienteRevision}
+          color="warning"
+          href="/pendientes"
+        />
+        <StatPill
+          label="Sin catalogar"
+          value={sinCatalogar}
+          color="destructive"
+          href="/pendientes"
+        />
       </div>
     </div>
   );
@@ -117,9 +120,9 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
             ? `$${Math.abs(saldo).toFixed(2)} a favor`
             : `$${saldo.toFixed(2)} pendiente`}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {alDia ? "Estás al día" : "Saldo pendiente de pago"}
-        </p>
+        <Badge variant={alDia ? "success" : "destructive"} className="mt-2">
+          {alDia ? "Al día" : "Saldo pendiente de pago"}
+        </Badge>
         <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
           <div>
             <dt className="text-muted-foreground">Deudas</dt>
