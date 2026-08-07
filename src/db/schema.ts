@@ -99,12 +99,34 @@ export const tiposExpensa = pgTable(
   (table) => [uniqueIndex("tipos_expensa_nombre_idx").on(table.nombre)]
 );
 
+// Catálogo de conceptos de deuda parametrizados por el admin de antemano
+// (ej. "Alícuota ordinaria" $60, "Cuota extraordinaria piscina" $150).
+// Al generar una deuda masiva se elige uno de estos conceptos en vez de
+// tipear tipo/monto/descripción cada vez; monto y descripción quedan
+// precargados pero son editables ese día sin tocar el catálogo.
+export const conceptosDeuda = pgTable(
+  "conceptos_deuda",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    tipoExpensaId: integer("tipo_expensa_id")
+      .notNull()
+      .references(() => tiposExpensa.id),
+    montoDefault: numeric("monto_default", { precision: 12, scale: 2 }).notNull(),
+    descripcionDefault: text("descripcion_default"),
+    activo: boolean("activo").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("conceptos_deuda_nombre_idx").on(table.nombre)]
+);
+
 // Corridas de "deuda masiva": registra quién, cuándo y con qué parámetros
 // se generó una deuda para todo el catálogo (o catálogo menos exclusiones).
 // `deudas.loteId` referencia esta tabla para poder auditar y anular la corrida.
 export const deudaMasivaLotes = pgTable("deuda_masiva_lotes", {
   id: serial("id").primaryKey(),
   usuarioId: integer("usuario_id").references(() => usuarios.id),
+  conceptoId: integer("concepto_id").references(() => conceptosDeuda.id),
   tipoExpensaId: integer("tipo_expensa_id")
     .notNull()
     .references(() => tiposExpensa.id),

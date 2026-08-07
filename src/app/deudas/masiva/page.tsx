@@ -1,10 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { asc } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { casas, tiposExpensa } from "@/db/schema";
+import { casas } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { obtenerConceptos } from "../conceptos/actions";
 import { FormDeudaMasiva } from "./form-deuda-masiva";
 import { HistorialDeudasMasivas, type FilaLote } from "./historial-deudas-masivas";
 import { obtenerLotesDeudaMasiva } from "./actions";
@@ -15,10 +17,8 @@ export default async function DeudaMasivaPage() {
     redirect("/");
   }
 
-  const tipos = await db
-    .select()
-    .from(tiposExpensa)
-    .orderBy(asc(tiposExpensa.nombre));
+  const todosLosConceptos = await obtenerConceptos();
+  const conceptosActivos = todosLosConceptos.filter((c) => c.activo);
 
   const listaCasas = await db
     .select({ id: casas.id, numero: casas.numero, bloque: casas.bloque })
@@ -36,7 +36,7 @@ export default async function DeudaMasivaPage() {
     id: l.id,
     fecha: formatoFecha.format(new Date(`${l.fecha}T00:00:00`)),
     fechaCreacion: formatoFecha.format(l.createdAt),
-    tipoNombre: l.tipoNombre,
+    concepto: l.conceptoNombre ?? l.tipoNombre,
     monto: l.monto,
     descripcion: l.descripcion,
     casasTotal: l.casasTotal,
@@ -49,17 +49,27 @@ export default async function DeudaMasivaPage() {
     <AppShell>
       <div className="mx-auto max-w-3xl px-6 py-8 lg:px-10">
         <div className="border-b border-border pb-6">
-          <h1 className="text-xl font-semibold text-foreground">
-            Crear deuda para todas las casas
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Se crea una deuda igual para todas las casas del catálogo. Úsalo
-            para la alícuota mensual o para cuotas extraordinarias. Podés
-            excluir casas puntuales antes de aplicarla.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">
+                Crear deuda para todas las casas
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elegí un concepto ya parametrizado (alícuota, cuota
+                extraordinaria…), la fecha de ejecución y a quiénes se lo
+                aplicás.
+              </p>
+            </div>
+            <Link
+              href="/deudas/conceptos"
+              className="shrink-0 text-sm font-medium text-primary hover:underline"
+            >
+              Gestionar catálogo de conceptos
+            </Link>
+          </div>
         </div>
         <div className="mt-6 rounded-lg border border-border bg-card px-6 py-6">
-          <FormDeudaMasiva tipos={tipos} casas={listaCasas} />
+          <FormDeudaMasiva conceptos={conceptosActivos} casas={listaCasas} />
         </div>
 
         <section className="mt-10">

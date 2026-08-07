@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Menu, Receipt, Upload } from "lucide-react";
+import { Building2, LayoutDashboard, Menu, Receipt, Tags, Upload } from "lucide-react";
 
 import { auth } from "@/auth";
 import { BrandMark } from "@/components/brand-mark";
@@ -19,6 +19,11 @@ const NAV_ADMIN: SidebarNavItem[] = [
     href: "/deudas/masiva",
     label: "Deudas masivas",
     icon: <Receipt className={ICON_CLASS} />,
+  },
+  {
+    href: "/deudas/conceptos",
+    label: "Conceptos de deuda",
+    icon: <Tags className={ICON_CLASS} />,
   },
 ];
 

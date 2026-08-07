@@ -6,9 +6,13 @@ import { Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { anularLoteDeudaMasiva, type LoteDeudaMasiva } from "./actions";
 
-export type FilaLote = Omit<LoteDeudaMasiva, "createdAt" | "anuladoEn"> & {
+export type FilaLote = Omit<
+  LoteDeudaMasiva,
+  "createdAt" | "anuladoEn" | "conceptoNombre" | "tipoNombre"
+> & {
   fechaCreacion: string;
   anulada: boolean;
+  concepto: string;
 };
 
 export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
@@ -28,7 +32,7 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
             <th className="px-4 py-3">Fecha</th>
-            <th className="px-4 py-3">Tipo</th>
+            <th className="px-4 py-3">Concepto</th>
             <th className="px-4 py-3">Monto</th>
             <th className="px-4 py-3">Descripción</th>
             <th className="px-4 py-3">Casas</th>
@@ -42,7 +46,7 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
               <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                 {f.fecha}
               </td>
-              <td className="px-4 py-3 text-foreground">{f.tipoNombre}</td>
+              <td className="px-4 py-3 text-foreground">{f.concepto}</td>
               <td className="px-4 py-3 text-foreground">
                 ${Number(f.monto).toFixed(2)}
               </td>

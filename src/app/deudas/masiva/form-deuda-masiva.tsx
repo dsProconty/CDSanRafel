@@ -1,30 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { Concepto } from "../conceptos/actions";
 import { crearDeudaMasiva } from "./actions";
 
 type Casa = { id: number; numero: string; bloque: string };
 
 export function FormDeudaMasiva({
-  tipos,
+  conceptos,
   casas,
 }: {
-  tipos: { id: number; nombre: string }[];
+  conceptos: Concepto[];
   casas: Casa[];
 }) {
-  const [tipoExpensaId, setTipoExpensaId] = useState(
-    tipos[0]?.id.toString() ?? ""
+  const [conceptoId, setConceptoId] = useState(
+    conceptos[0]?.id.toString() ?? ""
   );
-  const [monto, setMonto] = useState("60");
+  const [monto, setMonto] = useState(conceptos[0]?.montoDefault ?? "");
   const [fecha, setFecha] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
-  const [descripcion, setDescripcion] = useState("");
+  const [descripcion, setDescripcion] = useState(
+    conceptos[0]?.descripcionDefault ?? ""
+  );
   const [excluidas, setExcluidas] = useState<Set<number>>(new Set());
   const [filtro, setFiltro] = useState("");
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -48,11 +52,23 @@ export function FormDeudaMasiva({
     });
   }
 
-  if (tipos.length === 0) {
+  function elegirConcepto(id: string) {
+    setConceptoId(id);
+    const concepto = conceptos.find((c) => c.id === Number(id));
+    if (concepto) {
+      setMonto(concepto.montoDefault);
+      setDescripcion(concepto.descripcionDefault ?? "");
+    }
+  }
+
+  if (conceptos.length === 0) {
     return (
       <p className="text-sm text-destructive">
-        No hay tipos de expensa creados todavía (corre el seed de tipos de
-        expensa).
+        Todavía no hay conceptos de deuda creados. Creá uno en{" "}
+        <Link href="/deudas/conceptos" className="font-medium underline">
+          Conceptos de deuda
+        </Link>{" "}
+        antes de generar una deuda masiva.
       </p>
     );
   }
@@ -64,21 +80,21 @@ export function FormDeudaMasiva({
         e.preventDefault();
         setError(null);
         setMensaje(null);
-        const tipoNombre = tipos.find(
-          (t) => t.id === Number(tipoExpensaId)
+        const conceptoNombre = conceptos.find(
+          (c) => c.id === Number(conceptoId)
         )?.nombre;
         const excluidasTexto =
           excluidas.size > 0 ? ` (se excluyen ${excluidas.size} casas)` : "";
         if (
           !confirm(
-            `¿Crear una deuda de $${monto} (${tipoNombre}) para ${incluidas} casas${excluidasTexto}?`
+            `¿Crear la deuda "${conceptoNombre}" de $${monto} para ${incluidas} casas${excluidasTexto}?`
           )
         ) {
           return;
         }
         startTransition(async () => {
           const resultado = await crearDeudaMasiva(
-            Number(tipoExpensaId),
+            Number(conceptoId),
             Number(monto),
             fecha,
             descripcion,
@@ -90,25 +106,28 @@ export function FormDeudaMasiva({
             setMensaje(
               `Se creó la deuda para ${resultado.casasAfectadas} de ${resultado.casasTotal} casas.`
             );
-            setDescripcion("");
           }
         });
       }}
     >
       <div>
-        <Label htmlFor="tipo">Tipo de expensa</Label>
+        <Label htmlFor="concepto">Concepto</Label>
         <select
-          id="tipo"
-          value={tipoExpensaId}
-          onChange={(e) => setTipoExpensaId(e.target.value)}
+          id="concepto"
+          value={conceptoId}
+          onChange={(e) => elegirConcepto(e.target.value)}
           className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
         >
-          {tipos.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nombre}
+          {conceptos.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
             </option>
           ))}
         </select>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Monto y descripción se precargan del concepto — podés ajustarlos
+          para esta corrida sin tocar el catálogo.
+        </p>
       </div>
       <div>
         <Label htmlFor="monto">Monto</Label>
@@ -123,7 +142,7 @@ export function FormDeudaMasiva({
         />
       </div>
       <div>
-        <Label htmlFor="fecha">Fecha</Label>
+        <Label htmlFor="fecha">Fecha de ejecución</Label>
         <Input
           id="fecha"
           type="date"
@@ -146,7 +165,7 @@ export function FormDeudaMasiva({
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
           <div>
             <p className="text-sm font-medium text-foreground">
-              Excluir casas puntuales
+              A quiénes aplico esta deuda
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Se aplicará a {incluidas} de {casas.length} casas.

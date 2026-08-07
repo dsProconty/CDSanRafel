@@ -5,14 +5,21 @@ import { count, desc, eq, notInArray } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { casas, deudaMasivaLotes, deudas, tiposExpensa, usuarios } from "@/db/schema";
+import {
+  casas,
+  conceptosDeuda,
+  deudaMasivaLotes,
+  deudas,
+  tiposExpensa,
+  usuarios,
+} from "@/db/schema";
 
 export type CrearDeudaMasivaResultado =
   | { ok: true; casasAfectadas: number; casasTotal: number }
   | { ok: false; error: string };
 
 export async function crearDeudaMasiva(
-  tipoExpensaId: number,
+  conceptoId: number,
   monto: number,
   fecha: string,
   descripcion: string,
@@ -23,9 +30,19 @@ export async function crearDeudaMasiva(
     return { ok: false, error: "No autorizado." };
   }
 
-  if (!tipoExpensaId || !monto || monto <= 0 || !fecha) {
-    return { ok: false, error: "Completa tipo, monto y fecha." };
+  if (!conceptoId || !monto || monto <= 0 || !fecha) {
+    return { ok: false, error: "Elegí un concepto, monto y fecha." };
   }
+
+  const [concepto] = await db
+    .select({ id: conceptosDeuda.id, tipoExpensaId: conceptosDeuda.tipoExpensaId })
+    .from(conceptosDeuda)
+    .where(eq(conceptosDeuda.id, conceptoId));
+
+  if (!concepto) {
+    return { ok: false, error: "El concepto elegido ya no existe." };
+  }
+  const tipoExpensaId = concepto.tipoExpensaId;
 
   const todasLasCasas = casaIdsExcluidas.length
     ? await db
@@ -44,6 +61,7 @@ export async function crearDeudaMasiva(
     .insert(deudaMasivaLotes)
     .values({
       usuarioId: Number(session.user.id),
+      conceptoId,
       tipoExpensaId,
       monto: monto.toFixed(2),
       fecha,
@@ -76,6 +94,7 @@ export type LoteDeudaMasiva = {
   fecha: string;
   createdAt: Date;
   tipoNombre: string;
+  conceptoNombre: string | null;
   monto: string;
   descripcion: string | null;
   casasTotal: number;
@@ -94,6 +113,7 @@ export async function obtenerLotesDeudaMasiva(): Promise<LoteDeudaMasiva[]> {
       fecha: deudaMasivaLotes.fecha,
       createdAt: deudaMasivaLotes.createdAt,
       tipoNombre: tiposExpensa.nombre,
+      conceptoNombre: conceptosDeuda.nombre,
       monto: deudaMasivaLotes.monto,
       descripcion: deudaMasivaLotes.descripcion,
       casasTotal: deudaMasivaLotes.casasTotal,
@@ -103,6 +123,7 @@ export async function obtenerLotesDeudaMasiva(): Promise<LoteDeudaMasiva[]> {
     })
     .from(deudaMasivaLotes)
     .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudaMasivaLotes.tipoExpensaId))
+    .leftJoin(conceptosDeuda, eq(conceptosDeuda.id, deudaMasivaLotes.conceptoId))
     .leftJoin(usuarios, eq(usuarios.id, deudaMasivaLotes.usuarioId))
     .orderBy(desc(deudaMasivaLotes.createdAt))
     .limit(20);
