@@ -113,7 +113,7 @@ export default async function CargarPage() {
           <h1 className="text-xl font-semibold text-foreground">
             Cargar estado de cuenta
           </h1>
-          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Sube el Excel de movimientos de Banco Guayaquil. Los documentos ya
             cargados se descartan automáticamente y las referencias se cruzan
             contra el catálogo de casas.
@@ -139,7 +139,7 @@ export default async function CargarPage() {
           <h2 className="text-base font-semibold text-foreground">
             Pendientes de revisión
           </h2>
-          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Pagos que no se pudieron abonar automáticamente porque la
             referencia no cruzó con una sola casa. Se resuelven a mano.
           </p>
