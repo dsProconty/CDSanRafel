@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
 import { obtenerDetalleCasa } from "./actions";
 import { CasaDetalleContent } from "./casa-detalle-content";
 
@@ -30,12 +31,15 @@ export default async function CasaDetallePage({
           ← Volver a casas
         </Link>
 
-        <h1 className="mt-4 text-xl font-semibold text-foreground">
-          Casa {data.casa.numero}
-        </h1>
+        <div className="mt-4 flex items-center gap-2.5">
+          <h1 className="text-xl font-semibold text-foreground">
+            Casa {data.casa.numero}
+          </h1>
+          <Badge variant="secondary">Bloque {data.casa.bloque}</Badge>
+        </div>
 
         <div className="mt-4">
-          <CasaDetalleContent data={data} />
+          <CasaDetalleContent data={data} expanded />
         </div>
       </div>
     </AppShell>

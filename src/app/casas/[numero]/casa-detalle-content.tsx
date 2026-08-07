@@ -1,3 +1,5 @@
+import { Banknote, CircleDollarSign, Home, User, type LucideIcon } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { BotonEliminar } from "@/app/casas/boton-eliminar";
 import type { CasaDetalleData } from "./actions";
@@ -6,31 +8,78 @@ import { FormDeuda } from "./form-deuda";
 import { FormPropietario } from "./form-propietario";
 import { FormUsuario } from "./form-usuario";
 
+function KpiCard({
+  icon: Icon,
+  colorClass,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  colorClass: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-3">
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${colorClass}`}
+      >
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-bold text-foreground" title={value}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function CasaDetalleContent({
   data,
   onSaved,
+  expanded,
 }: {
   data: CasaDetalleData;
   onSaved?: () => void;
+  expanded?: boolean;
 }) {
   const { casa, usuario, referencias, deudas, tipos, saldo, alDia } = data;
+  const saldoFavor = alDia ? Math.abs(saldo) : 0;
+  const saldoPendiente = alDia ? 0 : saldo;
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Bloque {casa.bloque}</p>
-        <div className="flex items-center gap-2">
-          <p
-            className={`text-base font-semibold ${alDia ? "text-success" : "text-destructive"}`}
-          >
-            {alDia
-              ? `$${Math.abs(saldo).toFixed(2)} a favor`
-              : `$${saldo.toFixed(2)} pendiente`}
-          </p>
-          <Badge variant={alDia ? "success" : "destructive"}>
-            {alDia ? "Al día" : "Pendiente"}
-          </Badge>
-        </div>
+      <div
+        className={`grid grid-cols-2 gap-2.5 ${expanded ? "lg:grid-cols-4" : ""}`}
+      >
+        <KpiCard
+          icon={User}
+          colorClass="bg-primary"
+          label="Propietario"
+          value={casa.propietario || "Sin nombre"}
+        />
+        <KpiCard
+          icon={Home}
+          colorClass="bg-slate-700"
+          label="Casa"
+          value={`${casa.numero} · Bloque ${casa.bloque}`}
+        />
+        <KpiCard
+          icon={CircleDollarSign}
+          colorClass="bg-success"
+          label="Saldo a favor"
+          value={`$${saldoFavor.toFixed(2)}`}
+        />
+        <KpiCard
+          icon={Banknote}
+          colorClass="bg-destructive"
+          label="Saldo pendiente"
+          value={`$${saldoPendiente.toFixed(2)}`}
+        />
       </div>
 
       <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">

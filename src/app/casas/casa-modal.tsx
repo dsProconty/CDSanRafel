@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { obtenerDetalleCasa, type CasaDetalleData } from "./[numero]/actions";
 import { CasaDetalleContent } from "./[numero]/casa-detalle-content";
 
@@ -17,6 +18,7 @@ export function CasaModal({
   const router = useRouter();
   const [data, setData] = useState<CasaDetalleData | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [, startTransition] = useTransition();
 
   const cargar = useCallback(() => {
@@ -55,21 +57,41 @@ export function CasaModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-xl"
+        className={`w-full rounded-xl border border-border bg-card shadow-xl transition-[max-width] duration-150 ${
+          expanded ? "max-w-4xl" : "max-w-2xl"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            {data ? `Casa ${data.casa.numero}` : `Casa ${numero}`}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-semibold text-foreground">
+              {data ? `Casa ${data.casa.numero}` : `Casa ${numero}`}
+            </h2>
+            {data && <Badge variant="secondary">Bloque {data.casa.bloque}</Badge>}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-label={expanded ? "Contraer" : "Expandir"}
+              title={expanded ? "Contraer" : "Expandir"}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {expanded ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
@@ -82,7 +104,7 @@ export function CasaModal({
               Cargando…
             </p>
           ) : (
-            <CasaDetalleContent data={data} onSaved={handleSaved} />
+            <CasaDetalleContent data={data} onSaved={handleSaved} expanded={expanded} />
           )}
         </div>
       </div>
