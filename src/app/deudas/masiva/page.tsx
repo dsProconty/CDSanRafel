@@ -7,7 +7,8 @@ import { db } from "@/db";
 import { casas } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
 import { obtenerConceptos } from "../conceptos/actions";
-import { FormDeudaMasiva } from "./form-deuda-masiva";
+import { obtenerRecurrentes } from "../recurrentes/actions";
+import { SelectorModoDeuda } from "./selector-modo";
 import { HistorialDeudasMasivas, type FilaLote } from "./historial-deudas-masivas";
 import { obtenerLotesDeudaMasiva } from "./actions";
 
@@ -25,7 +26,10 @@ export default async function DeudaMasivaPage() {
     .from(casas)
     .orderBy(asc(casas.numero));
 
-  const lotes = await obtenerLotesDeudaMasiva();
+  const [lotes, recurrentes] = await Promise.all([
+    obtenerLotesDeudaMasiva(),
+    obtenerRecurrentes(),
+  ]);
 
   const formatoFecha = new Intl.DateTimeFormat("es-EC", {
     day: "numeric",
@@ -56,23 +60,25 @@ export default async function DeudaMasivaPage() {
                 Crear deuda para todas las casas
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Elegí un concepto ya parametrizado (alícuota, cuota
-                extraordinaria…), la fecha de ejecución y a quiénes se lo
-                aplicás.
+                Aplicala una sola vez, o programala para que se repita sola
+                mes a mes (alícuota) o en cuotas (cuota extraordinaria).
               </p>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1 text-sm font-medium">
-              <Link href="/deudas/conceptos" className="text-primary hover:underline">
-                Gestionar catálogo de conceptos
-              </Link>
-              <Link href="/deudas/recurrentes" className="text-primary hover:underline">
-                ¿Es recurrente? Programala acá
-              </Link>
-            </div>
+            <Link
+              href="/deudas/conceptos"
+              className="shrink-0 text-sm font-medium text-primary hover:underline"
+            >
+              Gestionar catálogo de conceptos
+            </Link>
           </div>
         </div>
-        <div className="mt-6 rounded-lg border border-border bg-card px-6 py-6">
-          <FormDeudaMasiva conceptos={conceptosActivos} casas={listaCasas} />
+
+        <div className="mt-6">
+          <SelectorModoDeuda
+            conceptos={conceptosActivos}
+            casas={listaCasas}
+            recurrentes={recurrentes}
+          />
         </div>
 
         <section className="mt-10">
@@ -80,8 +86,8 @@ export default async function DeudaMasivaPage() {
             Historial de deudas masivas
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Corridas anteriores: quién las creó, cuántas casas afectaron y si
-            fueron anuladas.
+            Corridas anteriores (manuales y automáticas): quién las creó,
+            cuántas casas afectaron y si fueron anuladas.
           </p>
           <HistorialDeudasMasivas filas={filasHistorial} />
         </section>
