@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { asc } from "drizzle-orm";
+import { asc, isNotNull, sum } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { casas } from "@/db/schema";
+import { casas, deudas, movimientosBancarios, usuarios } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
-import { StatPill } from "@/components/ui/stat-pill";
+import { CasasGrid, type EstadoCasa } from "./casas-grid";
 
 const BLOQUES = ["A", "B", "Otros"] as const;
 
@@ -39,58 +39,77 @@ export default async function CasasPage({
       ? todas.filter((c) => c.bloque !== "A" && c.bloque !== "B").length
       : todas.filter((c) => c.bloque === b).length;
 
+  const [deudasPorCasa, abonosPorCasa, casasConUsuario] = await Promise.all([
+    db
+      .select({ casaId: deudas.casaId, total: sum(deudas.monto) })
+      .from(deudas)
+      .groupBy(deudas.casaId),
+    db
+      .select({ casaId: movimientosBancarios.casaId, total: sum(movimientosBancarios.monto) })
+      .from(movimientosBancarios)
+      .where(isNotNull(movimientosBancarios.casaId))
+      .groupBy(movimientosBancarios.casaId),
+    db
+      .select({ casaId: usuarios.casaId })
+      .from(usuarios)
+      .where(isNotNull(usuarios.casaId)),
+  ]);
+
+  const deudaPorCasaId = new Map(deudasPorCasa.map((d) => [d.casaId, Number(d.total ?? 0)]));
+  const abonoPorCasaId = new Map(
+    abonosPorCasa.map((a) => [a.casaId as number, Number(a.total ?? 0)])
+  );
+  const casasConAcceso = new Set(casasConUsuario.map((u) => u.casaId));
+
+  function estadoDeCasa(casaId: number): EstadoCasa {
+    if (!casasConAcceso.has(casaId)) return "none";
+    const saldo = (deudaPorCasaId.get(casaId) ?? 0) - (abonoPorCasaId.get(casaId) ?? 0);
+    return saldo > 0 ? "due" : "ok";
+  }
+
+  const filasGrid = casasFiltradas.map((c) => ({
+    id: c.id,
+    numero: c.numero,
+    estado: estadoDeCasa(c.id),
+  }));
+
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
         <div className="border-b border-border pb-6">
           <h1 className="text-xl font-semibold text-foreground">Casas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Catálogo de casas y referencias bancarias.
+            {todas.length} unidades · Bloque A y Bloque B
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <StatPill label="total" value={todas.length} color="muted" />
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="inline-flex gap-0.5 rounded-lg bg-secondary p-0.5">
             {BLOQUES.map((b) => (
-              <StatPill
+              <Link
                 key={b}
-                label={b === "Otros" ? "otros" : `bloque ${b}`}
-                value={contarBloque(b)}
-                color={b === bloqueActivo ? "primary" : "muted"}
-              />
+                href={`/casas?bloque=${b}`}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  bloqueActivo === b
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {b === "Otros" ? "Otros" : `Bloque ${b}`}
+                <span
+                  className={`text-xs font-semibold tabular-nums ${
+                    bloqueActivo === b ? "text-muted-foreground" : "text-muted-foreground/70"
+                  }`}
+                >
+                  {contarBloque(b)}
+                </span>
+              </Link>
             ))}
           </div>
         </div>
 
-        <div className="mt-6 flex gap-2">
-          {BLOQUES.map((b) => (
-            <Link
-              key={b}
-              href={`/casas?bloque=${b}`}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                bloqueActivo === b
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              {b === "Otros" ? "Otros" : `Bloque ${b}`}
-            </Link>
-          ))}
-        </div>
-
-        <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8">
-          {casasFiltradas.map((c) => (
-            <Link
-              key={c.id}
-              href={`/casas/${c.numero}`}
-              className="rounded-lg border border-border bg-card px-3 py-3 text-center text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent"
-            >
-              {c.numero}
-            </Link>
-          ))}
-          {casasFiltradas.length === 0 && (
-            <p className="col-span-full text-sm text-muted-foreground">
-              No hay casas en este bloque.
-            </p>
-          )}
+        <div className="mt-4">
+          <CasasGrid casas={filasGrid} />
         </div>
       </div>
     </AppShell>
