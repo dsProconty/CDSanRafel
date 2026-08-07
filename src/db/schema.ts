@@ -99,6 +99,24 @@ export const tiposExpensa = pgTable(
   (table) => [uniqueIndex("tipos_expensa_nombre_idx").on(table.nombre)]
 );
 
+// Corridas de "deuda masiva": registra quién, cuándo y con qué parámetros
+// se generó una deuda para todo el catálogo (o catálogo menos exclusiones).
+// `deudas.loteId` referencia esta tabla para poder auditar y anular la corrida.
+export const deudaMasivaLotes = pgTable("deuda_masiva_lotes", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  tipoExpensaId: integer("tipo_expensa_id")
+    .notNull()
+    .references(() => tiposExpensa.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  fecha: date("fecha").notNull(),
+  descripcion: text("descripcion"),
+  casasTotal: integer("casas_total").notNull(),
+  casasAfectadas: integer("casas_afectadas").notNull(),
+  anuladoEn: timestamp("anulado_en"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Deudas generadas por casa (el saldo = Σ deudas − Σ abonos, siempre calculado)
 export const deudas = pgTable("deudas", {
   id: serial("id").primaryKey(),
@@ -112,6 +130,7 @@ export const deudas = pgTable("deudas", {
   fecha: date("fecha").notNull(),
   estado: estadoDeudaEnum("estado").notNull().default("pendiente"),
   descripcion: text("descripcion"),
+  loteId: integer("lote_id").references(() => deudaMasivaLotes.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

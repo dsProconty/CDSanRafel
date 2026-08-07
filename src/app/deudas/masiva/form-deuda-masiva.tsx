@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { crearDeudaMasiva } from "./actions";
 
+type Casa = { id: number; numero: string; bloque: string };
+
 export function FormDeudaMasiva({
   tipos,
+  casas,
 }: {
   tipos: { id: number; nombre: string }[];
+  casas: Casa[];
 }) {
   const [tipoExpensaId, setTipoExpensaId] = useState(
     tipos[0]?.id.toString() ?? ""
@@ -20,9 +25,28 @@ export function FormDeudaMasiva({
     new Date().toISOString().slice(0, 10)
   );
   const [descripcion, setDescripcion] = useState("");
+  const [excluidas, setExcluidas] = useState<Set<number>>(new Set());
+  const [filtro, setFiltro] = useState("");
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const casasFiltradas = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    if (!q) return casas;
+    return casas.filter((c) => c.numero.toLowerCase().includes(q));
+  }, [casas, filtro]);
+
+  const incluidas = casas.length - excluidas.size;
+
+  function toggleCasa(id: number) {
+    setExcluidas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   if (tipos.length === 0) {
     return (
@@ -43,9 +67,11 @@ export function FormDeudaMasiva({
         const tipoNombre = tipos.find(
           (t) => t.id === Number(tipoExpensaId)
         )?.nombre;
+        const excluidasTexto =
+          excluidas.size > 0 ? ` (se excluyen ${excluidas.size} casas)` : "";
         if (
           !confirm(
-            `¿Crear una deuda de $${monto} (${tipoNombre}) para todas las casas?`
+            `¿Crear una deuda de $${monto} (${tipoNombre}) para ${incluidas} casas${excluidasTexto}?`
           )
         ) {
           return;
@@ -55,12 +81,15 @@ export function FormDeudaMasiva({
             Number(tipoExpensaId),
             Number(monto),
             fecha,
-            descripcion
+            descripcion,
+            Array.from(excluidas)
           );
           if (!resultado.ok) {
             setError(resultado.error);
           } else {
-            setMensaje(`Se creó la deuda para ${resultado.casasAfectadas} casas.`);
+            setMensaje(
+              `Se creó la deuda para ${resultado.casasAfectadas} de ${resultado.casasTotal} casas.`
+            );
             setDescripcion("");
           }
         });
@@ -112,8 +141,62 @@ export function FormDeudaMasiva({
           placeholder="Ej. Expensa ordinaria agosto 2026"
         />
       </div>
+
+      <details className="group rounded-lg border border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Excluir casas puntuales
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Se aplicará a {incluidas} de {casas.length} casas.
+            </p>
+          </div>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="border-t border-border p-4">
+          <Input
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            placeholder="Buscar casa…"
+            className="mb-3"
+          />
+          <div className="grid max-h-56 grid-cols-3 gap-x-3 gap-y-2 overflow-y-auto sm:grid-cols-4">
+            {casasFiltradas.map((c) => (
+              <label
+                key={c.id}
+                className="flex items-center gap-1.5 text-sm text-foreground"
+              >
+                <input
+                  type="checkbox"
+                  checked={!excluidas.has(c.id)}
+                  onChange={() => toggleCasa(c.id)}
+                  className="h-3.5 w-3.5 rounded border-input"
+                />
+                {c.numero}
+              </label>
+            ))}
+            {casasFiltradas.length === 0 && (
+              <p className="col-span-full text-sm text-muted-foreground">
+                Sin resultados.
+              </p>
+            )}
+          </div>
+          {excluidas.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setExcluidas(new Set())}
+              className="mt-3 text-xs font-medium text-primary hover:underline"
+            >
+              Incluir todas de nuevo
+            </button>
+          )}
+        </div>
+      </details>
+
       <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Creando…" : "Aplicar a todas las casas"}
+        {pending ? "Creando…" : `Aplicar a ${incluidas} casas`}
       </Button>
       {mensaje && <p className="text-sm text-success">{mensaje}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
