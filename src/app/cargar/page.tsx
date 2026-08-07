@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { AppShell } from "@/components/app-shell";
 import { UploadForm } from "./upload-form";
 
 export default async function CargarPage() {
@@ -11,27 +11,21 @@ export default async function CargarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <Link
-          href="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Volver
-        </Link>
-        <h1 className="mt-4 font-display text-3xl font-medium text-foreground">
+    <AppShell>
+      <div className="mx-auto max-w-2xl px-6 py-8 lg:px-10">
+        <h1 className="text-xl font-semibold text-foreground">
           Cargar estado de cuenta
         </h1>
-        <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
           Sube el Excel de movimientos de Banco Guayaquil. Los documentos ya
           cargados se descartan automáticamente y las referencias se cruzan
           contra el catálogo de casas.
         </p>
 
-        <div className="mt-8">
+        <div className="mt-6 rounded-lg border border-border bg-card px-6 py-6">
           <UploadForm />
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

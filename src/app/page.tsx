@@ -9,36 +9,27 @@ import {
   deudas,
   movimientosBancarios,
 } from "@/db/schema";
-import { OrchidMark } from "@/components/orchid-mark";
+import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { LogoutButton } from "./logout-button";
 
 export default async function HomePage() {
   const session = await auth();
   const user = session!.user;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-3">
-            <OrchidMark className="h-7 w-7 text-primary" />
-            <div>
-              <h1 className="font-display text-lg leading-tight font-medium text-foreground">
-                Orquídeas San Rafael
-              </h1>
-              <p className="text-xs tracking-wide text-muted-foreground uppercase">
-                {user.rol === "admin" ? "Administrador" : "Propietario"}
-              </p>
-            </div>
-          </div>
-          <LogoutButton />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-4xl px-6 py-10">
+    <AppShell>
+      <div className="mx-auto max-w-5xl px-6 py-8 lg:px-10">
         {user.rol === "admin" ? <ResumenAdmin /> : <ResumenCasa casaId={user.casaId} />}
-      </main>
+      </div>
+    </AppShell>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-5 py-4">
+      <p className="text-2xl font-semibold text-foreground">{value}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -63,81 +54,32 @@ async function ResumenAdmin() {
   const sinCatalogar = totalesPorEstado.sin_catalogar ?? 0;
 
   return (
-    <section className="animate-rise">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium tracking-[0.2em] text-secondary uppercase">
-            Catálogo cargado
-          </p>
-          <h2 className="mt-2 font-display text-3xl font-medium text-foreground">
-            Casas y movimientos
-          </h2>
-          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+          <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             El Excel del banco se cruza automáticamente contra el catálogo
             de casas.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/casas">Casas</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/deudas/masiva">Crear deuda masiva</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/pendientes">Revisar pendientes</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/cargar">Cargar estado de cuenta</Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link href="/cargar">Cargar estado de cuenta</Link>
+        </Button>
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:max-w-2xl sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-          <p className="font-display text-4xl font-medium text-primary">
-            {totalCasas}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">Casas</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-          <p className="font-display text-4xl font-medium text-primary">
-            {totalReferencias}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Referencias bancarias
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-          <p className="font-display text-4xl font-medium text-primary">
-            {matched}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Abonos automáticos
-          </p>
-        </div>
-        <Link
-          href="/pendientes"
-          className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm transition-colors hover:bg-accent"
-        >
-          <p className="font-display text-4xl font-medium text-foreground">
-            {pendienteRevision}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pendientes de revisión
-          </p>
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Casas" value={totalCasas} />
+        <StatCard label="Referencias bancarias" value={totalReferencias} />
+        <StatCard label="Abonos automáticos" value={matched} />
+        <Link href="/pendientes">
+          <StatCard label="Pendientes de revisión" value={pendienteRevision} />
         </Link>
-        <Link
-          href="/pendientes"
-          className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm transition-colors hover:bg-accent"
-        >
-          <p className="font-display text-4xl font-medium text-foreground">
-            {sinCatalogar}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">Sin catalogar</p>
+        <Link href="/pendientes">
+          <StatCard label="Sin catalogar" value={sinCatalogar} />
         </Link>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -162,16 +104,14 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
   const alDia = saldo <= 0;
 
   return (
-    <section className="animate-rise">
-      <p className="text-xs font-medium tracking-[0.2em] text-secondary uppercase">
-        Bloque {casa.bloque}
-      </p>
-      <h2 className="mt-2 font-display text-4xl font-medium text-foreground">
+    <div>
+      <p className="text-sm text-muted-foreground">Bloque {casa.bloque}</p>
+      <h1 className="mt-1 text-2xl font-semibold text-foreground">
         Casa {casa.numero}
-      </h2>
-      <div className="mt-8 max-w-md rounded-xl border border-border bg-card px-6 py-6 shadow-sm">
+      </h1>
+      <div className="mt-6 max-w-md rounded-lg border border-border bg-card px-6 py-6">
         <p
-          className={`font-display text-3xl font-medium ${alDia ? "text-secondary" : "text-destructive"}`}
+          className={`text-3xl font-semibold ${alDia ? "text-success" : "text-destructive"}`}
         >
           {alDia
             ? `$${Math.abs(saldo).toFixed(2)} a favor`
@@ -195,6 +135,6 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
           </div>
         </dl>
       </div>
-    </section>
+    </div>
   );
 }

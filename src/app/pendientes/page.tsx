@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq, inArray } from "drizzle-orm";
 
@@ -9,6 +8,7 @@ import {
   movimientoCandidatosCasa,
   movimientosBancarios,
 } from "@/db/schema";
+import { AppShell } from "@/components/app-shell";
 import { BotonCandidato } from "./boton-candidato";
 import { FormAsignarManual } from "./form-asignar-manual";
 
@@ -63,30 +63,24 @@ export default async function PendientesPage() {
     .orderBy(casas.numero);
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppShell>
       <datalist id="casas-datalist">
         {todasLasCasas.map((c) => (
           <option key={c.numero} value={c.numero} />
         ))}
       </datalist>
 
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <Link
-          href="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Volver
-        </Link>
-        <h1 className="mt-4 font-display text-3xl font-medium text-foreground">
+      <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
+        <h1 className="text-xl font-semibold text-foreground">
           Pendientes de revisión
         </h1>
-        <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
           Pagos que no se pudieron abonar automáticamente. Asignar aquí
           actualiza el estado de cuenta al instante.
         </p>
 
-        <section className="mt-10">
-          <h2 className="font-display text-xl font-medium text-foreground">
+        <section className="mt-8">
+          <h2 className="text-base font-semibold text-foreground">
             Varias casas coinciden ({pendientes.length})
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -101,10 +95,10 @@ export default async function PendientesPage() {
               {pendientes.map((mov) => (
                 <li
                   key={mov.id}
-                  className="rounded-xl border border-border bg-card px-5 py-4 shadow-sm"
+                  className="rounded-lg border border-border bg-card px-5 py-4"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-display text-lg font-medium text-foreground">
+                    <p className="text-lg font-semibold text-foreground">
                       ${Number(mov.monto).toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -130,8 +124,8 @@ export default async function PendientesPage() {
           )}
         </section>
 
-        <section className="mt-12">
-          <h2 className="font-display text-xl font-medium text-foreground">
+        <section className="mt-10">
+          <h2 className="text-base font-semibold text-foreground">
             Sin catalogar ({sinCatalogar.length})
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -146,10 +140,10 @@ export default async function PendientesPage() {
               {sinCatalogar.map((mov) => (
                 <li
                   key={mov.id}
-                  className="rounded-xl border border-border bg-card px-5 py-4 shadow-sm"
+                  className="rounded-lg border border-border bg-card px-5 py-4"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-display text-lg font-medium text-foreground">
+                    <p className="text-lg font-semibold text-foreground">
                       ${Number(mov.monto).toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -168,6 +162,6 @@ export default async function PendientesPage() {
           )}
         </section>
       </div>
-    </div>
+    </AppShell>
   );
 }

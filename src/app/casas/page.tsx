@@ -5,6 +5,7 @@ import { asc } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { casas } from "@/db/schema";
+import { AppShell } from "@/components/app-shell";
 
 const BLOQUES = ["A", "B", "Otros"] as const;
 
@@ -33,15 +34,9 @@ export default async function CasasPage({
   ).sort(porNumero);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <Link
-          href="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Volver
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-foreground">Casas</h1>
+    <AppShell>
+      <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
+        <h1 className="text-xl font-semibold text-foreground">Casas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {todas.length} casas en total.
         </p>
@@ -51,7 +46,7 @@ export default async function CasasPage({
             <Link
               key={b}
               href={`/casas?bloque=${b}`}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                 bloqueActivo === b
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -67,7 +62,7 @@ export default async function CasasPage({
             <Link
               key={c.id}
               href={`/casas/${c.numero}`}
-              className="rounded-lg border border-border bg-card px-3 py-3 text-center text-sm font-medium text-foreground hover:bg-accent"
+              className="rounded-lg border border-border bg-card px-3 py-3 text-center text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent"
             >
               {c.numero}
             </Link>
@@ -79,6 +74,6 @@ export default async function CasasPage({
           )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
