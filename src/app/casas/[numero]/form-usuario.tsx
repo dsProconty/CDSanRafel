@@ -10,9 +10,11 @@ import { guardarUsuario } from "./actions";
 export function FormUsuario({
   casaId,
   emailActual,
+  onSaved,
 }: {
   casaId: number;
   emailActual: string;
+  onSaved?: () => void;
 }) {
   const [email, setEmail] = useState(emailActual);
   const [password, setPassword] = useState("");
@@ -31,6 +33,7 @@ export function FormUsuario({
             setError(resultado.error);
           } else {
             setPassword("");
+            onSaved?.();
           }
         });
       }}

@@ -8,9 +8,11 @@ import { eliminarUsuario } from "@/app/casas/[numero]/actions";
 export function BotonEliminar({
   casaId,
   nombre,
+  onDeleted,
 }: {
   casaId: number;
   nombre: string;
+  onDeleted?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -18,19 +20,22 @@ export function BotonEliminar({
     <button
       type="button"
       disabled={pending}
-      title="Eliminar acceso"
       onClick={() => {
         if (
           confirm(
             `¿Eliminar el acceso y los datos de contacto de ${nombre || "esta casa"}? Esta acción no se puede deshacer.`
           )
         ) {
-          startTransition(() => eliminarUsuario(casaId));
+          startTransition(async () => {
+            await eliminarUsuario(casaId);
+            onDeleted?.();
+          });
         }
       }}
-      className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-destructive transition-colors hover:text-destructive/80 disabled:opacity-50"
     >
-      <Trash2 className="h-4 w-4" />
+      <Trash2 className="h-3.5 w-3.5" />
+      {pending ? "Eliminando…" : "Eliminar acceso"}
     </button>
   );
 }

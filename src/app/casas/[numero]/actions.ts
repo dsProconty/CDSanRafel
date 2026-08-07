@@ -1,12 +1,19 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { asc, desc, eq, sum } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { casas, deudas, usuarios } from "@/db/schema";
+import {
+  casas,
+  catalogoReferenciasBancarias,
+  deudas,
+  movimientosBancarios,
+  tiposExpensa,
+  usuarios,
+} from "@/db/schema";
 
 type TipoResidente = "propietario" | "arrendatario" | "familiar";
 
@@ -15,6 +22,110 @@ async function requireAdmin() {
   if (session?.user.rol !== "admin") {
     throw new Error("No autorizado.");
   }
+}
+
+export type CasaDetalleData = {
+  casa: { id: number; numero: string; bloque: string; propietario: string | null };
+  usuario: {
+    email: string;
+    cedula: string | null;
+    telefono: string | null;
+    telefonoSecundario: string | null;
+    tipoResidente: TipoResidente;
+  } | null;
+  referencias: { id: number; referencia: string }[];
+  deudas: {
+    id: number;
+    monto: string;
+    fecha: string;
+    descripcion: string | null;
+    tipo: string;
+  }[];
+  tipos: { id: number; nombre: string }[];
+  saldo: number;
+  alDia: boolean;
+};
+
+export async function obtenerDetalleCasa(
+  numero: string
+): Promise<CasaDetalleData | null> {
+  await requireAdmin();
+
+  const [casa] = await db
+    .select()
+    .from(casas)
+    .where(eq(casas.numero, numero))
+    .limit(1);
+  if (!casa) return null;
+
+  const [usuario] = await db
+    .select({
+      email: usuarios.email,
+      cedula: usuarios.cedula,
+      telefono: usuarios.telefono,
+      telefonoSecundario: usuarios.telefonoSecundario,
+      tipoResidente: usuarios.tipoResidente,
+    })
+    .from(usuarios)
+    .where(eq(usuarios.casaId, casa.id))
+    .limit(1);
+
+  const referencias = await db
+    .select({ id: catalogoReferenciasBancarias.id, referencia: catalogoReferenciasBancarias.referencia })
+    .from(catalogoReferenciasBancarias)
+    .where(eq(catalogoReferenciasBancarias.casaId, casa.id));
+
+  const listaDeudas = await db
+    .select({
+      id: deudas.id,
+      monto: deudas.monto,
+      fecha: deudas.fecha,
+      descripcion: deudas.descripcion,
+      tipo: tiposExpensa.nombre,
+    })
+    .from(deudas)
+    .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudas.tipoExpensaId))
+    .where(eq(deudas.casaId, casa.id))
+    .orderBy(desc(deudas.fecha));
+
+  const tipos = await db
+    .select({ id: tiposExpensa.id, nombre: tiposExpensa.nombre })
+    .from(tiposExpensa)
+    .orderBy(asc(tiposExpensa.nombre));
+
+  const [{ totalDeudas }] = await db
+    .select({ totalDeudas: sum(deudas.monto) })
+    .from(deudas)
+    .where(eq(deudas.casaId, casa.id));
+  const [{ totalAbonado }] = await db
+    .select({ totalAbonado: sum(movimientosBancarios.monto) })
+    .from(movimientosBancarios)
+    .where(eq(movimientosBancarios.casaId, casa.id));
+
+  const saldo = Number(totalDeudas ?? 0) - Number(totalAbonado ?? 0);
+
+  return {
+    casa: {
+      id: casa.id,
+      numero: casa.numero,
+      bloque: casa.bloque,
+      propietario: casa.propietario,
+    },
+    usuario: usuario?.email
+      ? {
+          email: usuario.email,
+          cedula: usuario.cedula,
+          telefono: usuario.telefono,
+          telefonoSecundario: usuario.telefonoSecundario,
+          tipoResidente: usuario.tipoResidente,
+        }
+      : null,
+    referencias,
+    deudas: listaDeudas,
+    tipos,
+    saldo,
+    alDia: saldo <= 0,
+  };
 }
 
 export async function actualizarPropietario(casaId: number, propietario: string) {
@@ -86,15 +197,6 @@ export async function actualizarAgenda(
       telefonoSecundario: datos.telefonoSecundario.trim() || null,
       tipoResidente: datos.tipoResidente,
     })
-    .where(eq(usuarios.casaId, casaId));
-  revalidatePath("/casas");
-}
-
-export async function actualizarComprobante(casaId: number, activo: boolean) {
-  await requireAdmin();
-  await db
-    .update(usuarios)
-    .set({ comprobanteActivo: activo })
     .where(eq(usuarios.casaId, casaId));
   revalidatePath("/casas");
 }

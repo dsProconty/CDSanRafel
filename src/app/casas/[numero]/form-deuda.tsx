@@ -10,9 +10,11 @@ import { crearDeuda } from "./actions";
 export function FormDeuda({
   casaId,
   tipos,
+  onSaved,
 }: {
   casaId: number;
   tipos: { id: number; nombre: string }[];
+  onSaved?: () => void;
 }) {
   const [tipoExpensaId, setTipoExpensaId] = useState(
     tipos[0]?.id.toString() ?? ""
@@ -38,9 +40,10 @@ export function FormDeuda({
       className="mt-2 flex flex-wrap items-end gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        startTransition(() =>
-          crearDeuda(casaId, Number(tipoExpensaId), Number(monto), fecha, descripcion)
-        );
+        startTransition(async () => {
+          await crearDeuda(casaId, Number(tipoExpensaId), Number(monto), fecha, descripcion);
+          onSaved?.();
+        });
         setMonto("");
         setDescripcion("");
       }}

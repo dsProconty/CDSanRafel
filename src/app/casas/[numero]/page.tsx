@@ -1,23 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { asc, desc, eq, sum } from "drizzle-orm";
 
 import { auth } from "@/auth";
-import { db } from "@/db";
-import {
-  casas,
-  catalogoReferenciasBancarias,
-  deudas,
-  movimientosBancarios,
-  tiposExpensa,
-  usuarios,
-} from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
-import { Badge } from "@/components/ui/badge";
-import { FormAgenda } from "./form-agenda";
-import { FormDeuda } from "./form-deuda";
-import { FormPropietario } from "./form-propietario";
-import { FormUsuario } from "./form-usuario";
+import { obtenerDetalleCasa } from "./actions";
+import { CasaDetalleContent } from "./casa-detalle-content";
 
 export default async function CasaDetallePage({
   params,
@@ -30,59 +17,8 @@ export default async function CasaDetallePage({
   }
 
   const { numero } = await params;
-  const [casa] = await db
-    .select()
-    .from(casas)
-    .where(eq(casas.numero, numero))
-    .limit(1);
-  if (!casa) notFound();
-
-  const [usuario] = await db
-    .select({
-      email: usuarios.email,
-      cedula: usuarios.cedula,
-      telefono: usuarios.telefono,
-      telefonoSecundario: usuarios.telefonoSecundario,
-      tipoResidente: usuarios.tipoResidente,
-    })
-    .from(usuarios)
-    .where(eq(usuarios.casaId, casa.id))
-    .limit(1);
-
-  const referencias = await db
-    .select()
-    .from(catalogoReferenciasBancarias)
-    .where(eq(catalogoReferenciasBancarias.casaId, casa.id));
-
-  const listaDeudas = await db
-    .select({
-      id: deudas.id,
-      monto: deudas.monto,
-      fecha: deudas.fecha,
-      descripcion: deudas.descripcion,
-      tipo: tiposExpensa.nombre,
-    })
-    .from(deudas)
-    .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudas.tipoExpensaId))
-    .where(eq(deudas.casaId, casa.id))
-    .orderBy(desc(deudas.fecha));
-
-  const tipos = await db
-    .select()
-    .from(tiposExpensa)
-    .orderBy(asc(tiposExpensa.nombre));
-
-  const [{ totalDeudas }] = await db
-    .select({ totalDeudas: sum(deudas.monto) })
-    .from(deudas)
-    .where(eq(deudas.casaId, casa.id));
-  const [{ totalAbonado }] = await db
-    .select({ totalAbonado: sum(movimientosBancarios.monto) })
-    .from(movimientosBancarios)
-    .where(eq(movimientosBancarios.casaId, casa.id));
-
-  const saldo = Number(totalDeudas ?? 0) - Number(totalAbonado ?? 0);
-  const alDia = saldo <= 0;
+  const data = await obtenerDetalleCasa(numero);
+  if (!data) notFound();
 
   return (
     <AppShell>
@@ -94,118 +30,13 @@ export default async function CasaDetallePage({
           ← Volver a casas
         </Link>
 
-        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-6">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Casa {casa.numero}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Bloque {casa.bloque}
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <p
-              className={`text-lg font-semibold ${alDia ? "text-success" : "text-destructive"}`}
-            >
-              {alDia
-                ? `$${Math.abs(saldo).toFixed(2)} a favor`
-                : `$${saldo.toFixed(2)} pendiente`}
-            </p>
-            <Badge variant={alDia ? "success" : "destructive"}>
-              {alDia ? "Al día" : "Pendiente"}
-            </Badge>
-          </div>
+        <h1 className="mt-4 text-xl font-semibold text-foreground">
+          Casa {data.casa.numero}
+        </h1>
+
+        <div className="mt-4">
+          <CasaDetalleContent data={data} />
         </div>
-
-        <section className="mt-8 rounded-lg border border-border bg-card px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground">
-            Propietario
-          </h2>
-          <FormPropietario casaId={casa.id} propietarioActual={casa.propietario ?? ""} />
-        </section>
-
-        <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground">
-            Acceso al sistema
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {usuario?.email
-              ? `Usuario actual: ${usuario.email}`
-              : "Esta casa no tiene usuario creado todavía."}
-          </p>
-          <FormUsuario casaId={casa.id} emailActual={usuario?.email ?? ""} />
-        </section>
-
-        {usuario && (
-          <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
-            <h2 className="text-sm font-semibold text-foreground">
-              Datos de contacto
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Reemplaza a las pantallas "Usuarios" y "Agenda" del sistema
-              anterior.
-            </p>
-            <FormAgenda
-              casaId={casa.id}
-              cedulaActual={usuario.cedula ?? ""}
-              telefonoActual={usuario.telefono ?? ""}
-              telefonoSecundarioActual={usuario.telefonoSecundario ?? ""}
-              tipoResidenteActual={usuario.tipoResidente}
-            />
-          </section>
-        )}
-
-        <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground">
-            Referencias bancarias ({referencias.length})
-          </h2>
-          {referencias.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ninguna todavía — se aprenden cuando se carga o revisa el
-              estado de cuenta del banco.
-            </p>
-          ) : (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {referencias.map((r) => (
-                <Badge key={r.id} variant="outline">
-                  {r.referencia}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground">
-            Deudas ({listaDeudas.length})
-          </h2>
-          <FormDeuda casaId={casa.id} tipos={tipos} />
-          {listaDeudas.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Sin deudas registradas.
-            </p>
-          ) : (
-            <div className="mt-4 divide-y divide-border rounded-lg border border-border">
-              {listaDeudas.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{d.tipo}</Badge>
-                    <span className="text-muted-foreground">
-                      {d.fecha}
-                      {d.descripcion ? ` · ${d.descripcion}` : ""}
-                    </span>
-                  </div>
-                  <span className="font-medium text-foreground">
-                    ${Number(d.monto).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
       </div>
     </AppShell>
   );

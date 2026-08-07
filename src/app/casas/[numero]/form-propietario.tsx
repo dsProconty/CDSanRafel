@@ -9,9 +9,11 @@ import { actualizarPropietario } from "./actions";
 export function FormPropietario({
   casaId,
   propietarioActual,
+  onSaved,
 }: {
   casaId: number;
   propietarioActual: string;
+  onSaved?: () => void;
 }) {
   const [valor, setValor] = useState(propietarioActual);
   const [pending, startTransition] = useTransition();
@@ -21,7 +23,10 @@ export function FormPropietario({
       className="mt-2 flex gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        startTransition(() => actualizarPropietario(casaId, valor));
+        startTransition(async () => {
+          await actualizarPropietario(casaId, valor);
+          onSaved?.();
+        });
       }}
     >
       <Input

@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { LayoutGrid, List, Pencil, Search, Trash2 } from "lucide-react";
+import { LayoutGrid, List, Pencil, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { ToggleComprobante } from "./toggle-comprobante";
-import { BotonEliminar } from "./boton-eliminar";
+import { CasaModal } from "./casa-modal";
 
 export type EstadoCasa = "ok" | "due" | "none";
 export type TipoResidente = "propietario" | "arrendatario" | "familiar";
@@ -23,7 +21,6 @@ export type FilaCasa = {
   telefono: string | null;
   telefonoSecundario: string | null;
   tipoResidente: TipoResidente | null;
-  comprobanteActivo: boolean;
   ultimoAcceso: string | null;
 };
 
@@ -56,10 +53,17 @@ function coincide(c: FilaCasa, termino: string) {
   );
 }
 
+function PagoBadge({ estado }: { estado: EstadoCasa }) {
+  if (estado === "ok") return <Badge variant="success">Al día</Badge>;
+  if (estado === "due") return <Badge variant="destructive">Pendiente</Badge>;
+  return <span className="text-muted-foreground">—</span>;
+}
+
 export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
   const [vista, setVista] = useState<"grid" | "tabla">("grid");
   const [bloque, setBloque] = useState<Bloque>("A");
   const [busqueda, setBusqueda] = useState("");
+  const [casaAbierta, setCasaAbierta] = useState<string | null>(null);
 
   const filtradas = useMemo(() => {
     const porBloque = casas.filter((c) => esDelBloque(c, bloque));
@@ -151,16 +155,17 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
 
           <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 md:grid-cols-8">
             {filtradas.map((c) => (
-              <Link
+              <button
                 key={c.id}
-                href={`/casas/${c.numero}`}
+                type="button"
+                onClick={() => setCasaAbierta(c.numero)}
                 className="group relative flex aspect-square items-center justify-center rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
               >
                 {c.numero}
                 <span
                   className={`absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full ${DOT_CLASS[c.estado]}`}
                 />
-              </Link>
+              </button>
             ))}
             {filtradas.length === 0 && (
               <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
@@ -171,16 +176,16 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
         </>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[920px] text-sm">
+          <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
                 <th className="px-4 py-3">Casa</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Pago</th>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Cédula</th>
                 <th className="px-4 py-3">Contacto</th>
                 <th className="px-4 py-3">Último acceso</th>
-                <th className="px-4 py-3">Comprobante</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -188,12 +193,13 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
               {filtradas.map((f) => (
                 <tr key={f.id} className="hover:bg-accent/40">
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/casas/${f.numero}`}
+                    <button
+                      type="button"
+                      onClick={() => setCasaAbierta(f.numero)}
                       className="font-medium text-primary hover:underline"
                     >
                       {f.numero}
-                    </Link>
+                    </button>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {f.tipoResidente ? (
@@ -203,6 +209,9 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                     ) : (
                       <Badge variant="outline">Sin acceso</Badge>
                     )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <PagoBadge estado={f.estado} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-foreground">
                     {f.propietario || (
@@ -237,29 +246,15 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                         : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <ToggleComprobante
-                      casaId={f.id}
-                      activo={f.comprobanteActivo}
-                      disabled={!f.tieneAcceso}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-3">
-                      <Link
-                        href={`/casas/${f.numero}`}
+                      <button
+                        type="button"
+                        onClick={() => setCasaAbierta(f.numero)}
                         title="Editar"
                         className="text-muted-foreground transition-colors hover:text-foreground"
                       >
                         <Pencil className="h-4 w-4" />
-                      </Link>
-                      {f.tieneAcceso ? (
-                        <BotonEliminar casaId={f.id} nombre={f.propietario ?? ""} />
-                      ) : (
-                        <Trash2
-                          className="h-4 w-4 cursor-not-allowed text-muted-foreground/25"
-                          aria-hidden="true"
-                        />
-                      )}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -277,6 +272,10 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {casaAbierta && (
+        <CasaModal numero={casaAbierta} onClose={() => setCasaAbierta(null)} />
       )}
     </div>
   );

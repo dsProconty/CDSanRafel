@@ -19,12 +19,14 @@ export function FormAgenda({
   telefonoActual,
   telefonoSecundarioActual,
   tipoResidenteActual,
+  onSaved,
 }: {
   casaId: number;
   cedulaActual: string;
   telefonoActual: string;
   telefonoSecundarioActual: string;
   tipoResidenteActual: (typeof TIPOS_RESIDENTE)[number]["value"];
+  onSaved?: () => void;
 }) {
   const [cedula, setCedula] = useState(cedulaActual);
   const [telefono, setTelefono] = useState(telefonoActual);
@@ -39,14 +41,15 @@ export function FormAgenda({
       className="mt-2 flex flex-wrap items-end gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        startTransition(() =>
-          actualizarAgenda(casaId, {
+        startTransition(async () => {
+          await actualizarAgenda(casaId, {
             cedula,
             telefono,
             telefonoSecundario,
             tipoResidente,
-          })
-        );
+          });
+          onSaved?.();
+        });
       }}
     >
       <div>

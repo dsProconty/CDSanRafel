@@ -27,7 +27,6 @@ export default async function CasasPage() {
         telefono: usuarios.telefono,
         telefonoSecundario: usuarios.telefonoSecundario,
         tipoResidente: usuarios.tipoResidente,
-        comprobanteActivo: usuarios.comprobanteActivo,
         ultimoAcceso: usuarios.ultimoAcceso,
       })
       .from(casas)
@@ -68,7 +67,6 @@ export default async function CasasPage() {
         telefono: f.telefono,
         telefonoSecundario: f.telefonoSecundario,
         tipoResidente: f.tipoResidente,
-        comprobanteActivo: f.comprobanteActivo ?? false,
         ultimoAcceso: f.ultimoAcceso ? f.ultimoAcceso.toISOString() : null,
       };
     })
