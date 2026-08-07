@@ -1,11 +1,4 @@
-import {
-  Building2,
-  LayoutDashboard,
-  ListChecks,
-  Menu,
-  Receipt,
-  Upload,
-} from "lucide-react";
+import { Building2, LayoutDashboard, Menu, Receipt, Upload } from "lucide-react";
 
 import { auth } from "@/auth";
 import { BrandMark } from "@/components/brand-mark";
@@ -21,11 +14,6 @@ const NAV_ADMIN: SidebarNavItem[] = [
     href: "/cargar",
     label: "Cargar estado de cuenta",
     icon: <Upload className={ICON_CLASS} />,
-  },
-  {
-    href: "/pendientes",
-    label: "Pendientes",
-    icon: <ListChecks className={ICON_CLASS} />,
   },
   {
     href: "/deudas/masiva",

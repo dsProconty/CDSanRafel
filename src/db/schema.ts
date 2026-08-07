@@ -134,6 +134,22 @@ export const movimientosBancarios = pgTable(
   (table) => [uniqueIndex("movimientos_documento_idx").on(table.documento)]
 );
 
+// Historial de cargas del Excel del banco: quién subió, cuándo, y el
+// resumen de lo que pasó en esa corrida (para la tabla de auditoría).
+export const cargasEstadoCuenta = pgTable("cargas_estado_cuenta", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  nombreArchivo: text("nombre_archivo").notNull(),
+  totalFilas: integer("total_filas").notNull(),
+  creditos: integer("creditos").notNull(),
+  debitos: integer("debitos").notNull(),
+  duplicados: integer("duplicados").notNull(),
+  matchedAutomatico: integer("matched_automatico").notNull(),
+  pendienteRevision: integer("pendiente_revision").notNull(),
+  sinCatalogar: integer("sin_catalogar").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Casas candidatas sugeridas cuando una referencia matchea con más de 1 casa
 // (cola de revisión: el admin elige con un clic).
 export const movimientoCandidatosCasa = pgTable(

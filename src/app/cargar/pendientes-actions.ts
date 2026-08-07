@@ -35,7 +35,7 @@ export async function asignarCandidato(movimientoId: number, casaId: number) {
       .where(eq(movimientoCandidatosCasa.movimientoId, movimientoId)),
   ]);
 
-  revalidatePath("/pendientes");
+  revalidatePath("/cargar");
   revalidatePath("/");
 }
 
@@ -85,7 +85,7 @@ export async function asignarManual(
       }),
   ]);
 
-  revalidatePath("/pendientes");
+  revalidatePath("/cargar");
   revalidatePath("/");
   return { ok: true };
 }

@@ -15,6 +15,13 @@
       "when": 1786065843919,
       "tag": "0001_brainy_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786121327762,
+      "tag": "0002_modern_robin_chapel",
+      "breakpoints": true
     }
   ]
 }

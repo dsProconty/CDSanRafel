@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { asignarCandidato } from "./actions";
+import { asignarCandidato } from "./pendientes-actions";
 
 export function BotonCandidato({
   movimientoId,

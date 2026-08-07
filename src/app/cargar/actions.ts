@@ -1,6 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { auth } from "@/auth";
+import { db } from "@/db";
+import { cargasEstadoCuenta } from "@/db/schema";
 import { parseBankExcel } from "@/lib/parse-bank-excel";
 import {
   procesarMovimientosBancarios,
@@ -29,6 +33,21 @@ export async function cargarEstadoCuenta(
     const buffer = Buffer.from(await archivo.arrayBuffer());
     const filas = parseBankExcel(buffer);
     const resumen = await procesarMovimientosBancarios(filas);
+
+    await db.insert(cargasEstadoCuenta).values({
+      usuarioId: Number(session.user.id),
+      nombreArchivo: archivo.name,
+      totalFilas: resumen.totalFilas,
+      creditos: resumen.creditos,
+      debitos: resumen.debitos,
+      duplicados: resumen.duplicados,
+      matchedAutomatico: resumen.matchedAutomatico,
+      pendienteRevision: resumen.pendienteRevision,
+      sinCatalogar: resumen.sinCatalogar,
+    });
+
+    revalidatePath("/cargar");
+    revalidatePath("/");
     return { ok: true, resumen };
   } catch (error) {
     const mensaje =

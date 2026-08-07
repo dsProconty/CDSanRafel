@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { asignarManual } from "./actions";
+import { asignarManual } from "./pendientes-actions";
 
 export function FormAsignarManual({ movimientoId }: { movimientoId: number }) {
   const [pending, startTransition] = useTransition();

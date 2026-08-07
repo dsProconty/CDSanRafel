@@ -73,13 +73,13 @@ async function ResumenAdmin() {
           label="Pendientes de revisión"
           value={pendienteRevision}
           color="warning"
-          href="/pendientes"
+          href="/cargar"
         />
         <StatPill
           label="Sin catalogar"
           value={sinCatalogar}
           color="destructive"
-          href="/pendientes"
+          href="/cargar"
         />
       </div>
     </div>
