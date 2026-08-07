@@ -115,7 +115,7 @@ export function FormDeudaMasiva({
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Creando…" : "Aplicar a todas las casas"}
       </Button>
-      {mensaje && <p className="text-sm text-secondary">{mensaje}</p>}
+      {mensaje && <p className="text-sm text-success">{mensaje}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </form>
   );

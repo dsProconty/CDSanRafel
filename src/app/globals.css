@@ -1,39 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --radius: 0.9rem;
+  --radius: 0.5rem;
 
-  /* Papel marfil cálido + tinta */
-  --background: #faf5ec;
-  --foreground: #2a211c;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 
   --card: #ffffff;
-  --card-foreground: #2a211c;
+  --card-foreground: #0f172a;
 
-  /* Ciruela/orquídea profundo */
-  --primary: #7a2e52;
-  --primary-foreground: #fdf1f6;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
 
-  /* Verde botánico */
-  --secondary: #2e4a38;
-  --secondary-foreground: #eff6f1;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
 
-  --muted: #f0e7d8;
-  --muted-foreground: #7c7364;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
 
-  --accent: #f4e1ec;
-  --accent-foreground: #7a2e52;
+  --accent: #eef2ff;
+  --accent-foreground: #4338ca;
 
-  --destructive: #a63a2c;
-  --destructive-foreground: #fdf1ec;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 
-  --border: #e7dcc7;
-  --input: #e7dcc7;
-  --ring: #7a2e52;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
 
-  /* Panel de marca: fijo, no se invierte con el tema del sistema */
-  --brand-panel: #7a2e52;
-  --brand-panel-foreground: #fdf1f6;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #4f46e5;
+
+  /* Sidebar: fija, oscura, no se invierte con el tema del sistema */
+  --sidebar: #0f172a;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-foreground-active: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-border: #1e293b;
 }
 
 @theme inline {
@@ -51,79 +54,58 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-brand-panel: var(--brand-panel);
-  --color-brand-panel-foreground: var(--brand-panel-foreground);
-  --radius-sm: calc(var(--radius) - 5px);
-  --radius-md: calc(var(--radius) - 3px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 5px);
-  --font-sans: var(--font-body);
-  --font-display: var(--font-display);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-foreground-active: var(--sidebar-foreground-active);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1e1420;
-    --foreground: #f3e9ee;
+    --background: #0b1120;
+    --foreground: #f1f5f9;
 
-    --card: #291b28;
-    --card-foreground: #f3e9ee;
+    --card: #111827;
+    --card-foreground: #f1f5f9;
 
-    --primary: #eaacc9;
-    --primary-foreground: #2a1220;
+    --primary: #6366f1;
+    --primary-foreground: #0b1120;
 
-    --secondary: #82ab8e;
-    --secondary-foreground: #142418;
+    --secondary: #1e293b;
+    --secondary-foreground: #f1f5f9;
 
-    --muted: #382736;
-    --muted-foreground: #c3b0c1;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
 
-    --accent: #382736;
-    --accent-foreground: #eaacc9;
+    --accent: #1e293b;
+    --accent-foreground: #a5b4fc;
 
-    --destructive: #e2917e;
-    --destructive-foreground: #2a1220;
+    --destructive: #f87171;
+    --destructive-foreground: #0b1120;
 
-    --border: #493447;
-    --input: #493447;
-    --ring: #eaacc9;
+    --success: #4ade80;
+    --success-foreground: #0b1120;
+
+    --border: #1e293b;
+    --input: #1e293b;
+    --ring: #6366f1;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Textura de grano sutil para paneles decorativos */
-.grain-overlay {
-  position: relative;
-}
-.grain-overlay::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.35;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-rise {
-  animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }

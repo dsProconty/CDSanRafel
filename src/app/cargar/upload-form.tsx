@@ -18,20 +18,20 @@ export function UploadForm() {
         name="archivo"
         accept=".xlsx"
         required
-        className="rounded-lg border border-input bg-background px-3 py-2 text-sm file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
+        className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
       />
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Procesando…" : "Cargar y procesar"}
       </Button>
 
       {resultado && !resultado.ok && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {resultado.error}
         </p>
       )}
 
       {resultado?.ok && (
-        <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="Créditos en el archivo" value={resultado.resumen.creditos} />
           <Stat label="Duplicados (ya cargados)" value={resultado.resumen.duplicados} />
           <Stat label="Débitos (no procesados)" value={resultado.resumen.debitos} />
@@ -66,9 +66,9 @@ function Stat({
   destacado?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-background px-4 py-4">
       <p
-        className={`font-display text-2xl font-medium ${destacado ? "text-primary" : "text-foreground"}`}
+        className={`text-2xl font-semibold ${destacado ? "text-primary" : "text-foreground"}`}
       >
         {value}
       </p>
