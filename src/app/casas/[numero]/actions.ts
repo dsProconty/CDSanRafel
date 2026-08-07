@@ -128,20 +128,73 @@ export async function obtenerDetalleCasa(
   };
 }
 
-export type PagosCasaData = {
-  casa: { numero: string; bloque: string };
-  pagos: {
-    id: number;
-    documento: string;
-    fecha: string;
-    monto: string;
-    concepto: string | null;
-  }[];
+export type FilaEstadoCuenta = {
+  id: number;
+  tipo: string;
+  estado: "pendiente" | "pagada";
+  valor: number;
+  fechaEmision: string;
+  fechaPago: string | null;
+  comprobante: string | null;
+  detalle: string | null;
 };
 
-export async function obtenerPagosCasa(
+export type EstadoCuentaCasaData = {
+  casa: { numero: string; bloque: string };
+  filas: FilaEstadoCuenta[];
+};
+
+// Asigna cada pago a la deuda más antigua sin cubrir (FIFO), como un libro
+// mayor simple. No hay vínculo real deuda↔pago en el modelo de datos —
+// esto es una reconstrucción de lectura para mostrar Estado/Fecha de pago/
+// Comprobante por línea, igual que en el sistema anterior.
+function calcularEstadoCuenta(
+  listaDeudas: { id: number; monto: string; fecha: string; descripcion: string | null; tipo: string }[],
+  listaPagos: { documento: string; fecha: string; monto: string }[]
+): FilaEstadoCuenta[] {
+  const deudasOrdenadas = [...listaDeudas].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const pagosOrdenados = [...listaPagos]
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .map((p) => ({ ...p, restante: Number(p.monto) }));
+
+  let idxPago = 0;
+
+  return deudasOrdenadas.map((d) => {
+    let pendiente = Number(d.monto);
+    let fechaPago: string | null = null;
+    const comprobantes: string[] = [];
+
+    while (pendiente > 0.005 && idxPago < pagosOrdenados.length) {
+      const pago = pagosOrdenados[idxPago];
+      if (pago.restante <= 0.005) {
+        idxPago++;
+        continue;
+      }
+      const usar = Math.min(pendiente, pago.restante);
+      pago.restante -= usar;
+      pendiente -= usar;
+      if (!comprobantes.includes(pago.documento)) comprobantes.push(pago.documento);
+      fechaPago = pago.fecha;
+      if (pago.restante <= 0.005) idxPago++;
+    }
+
+    const pagada = pendiente <= 0.005;
+    return {
+      id: d.id,
+      tipo: d.tipo,
+      estado: pagada ? "pagada" : "pendiente",
+      valor: Number(d.monto),
+      fechaEmision: d.fecha,
+      fechaPago: pagada ? fechaPago : null,
+      comprobante: pagada && comprobantes.length ? comprobantes.join(", ") : null,
+      detalle: d.descripcion,
+    };
+  });
+}
+
+export async function obtenerEstadoCuentaCasa(
   numero: string
-): Promise<PagosCasaData | null> {
+): Promise<EstadoCuentaCasaData | null> {
   await requireAdmin();
 
   const [casa] = await db
@@ -151,21 +204,34 @@ export async function obtenerPagosCasa(
     .limit(1);
   if (!casa) return null;
 
-  const pagos = await db
+  const listaDeudas = await db
     .select({
-      id: movimientosBancarios.id,
+      id: deudas.id,
+      monto: deudas.monto,
+      fecha: deudas.fecha,
+      descripcion: deudas.descripcion,
+      tipo: tiposExpensa.nombre,
+    })
+    .from(deudas)
+    .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudas.tipoExpensaId))
+    .where(eq(deudas.casaId, casa.id));
+
+  const listaPagos = await db
+    .select({
       documento: movimientosBancarios.documento,
       fecha: movimientosBancarios.fechaTransaccion,
       monto: movimientosBancarios.monto,
-      concepto: movimientosBancarios.concepto,
     })
     .from(movimientosBancarios)
-    .where(eq(movimientosBancarios.casaId, casa.id))
-    .orderBy(desc(movimientosBancarios.fechaTransaccion));
+    .where(eq(movimientosBancarios.casaId, casa.id));
+
+  const filas = calcularEstadoCuenta(listaDeudas, listaPagos).sort((a, b) =>
+    b.fechaEmision.localeCompare(a.fechaEmision)
+  );
 
   return {
     casa: { numero: casa.numero, bloque: casa.bloque },
-    pagos,
+    filas,
   };
 }
 
