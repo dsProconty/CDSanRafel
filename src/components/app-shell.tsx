@@ -5,7 +5,6 @@ import {
   Menu,
   Receipt,
   Upload,
-  Users,
 } from "lucide-react";
 
 import { auth } from "@/auth";
@@ -18,7 +17,6 @@ const ICON_CLASS = "h-4 w-4 shrink-0";
 const NAV_ADMIN: SidebarNavItem[] = [
   { href: "/", label: "Dashboard", icon: <LayoutDashboard className={ICON_CLASS} /> },
   { href: "/casas", label: "Casas", icon: <Building2 className={ICON_CLASS} /> },
-  { href: "/usuarios", label: "Usuarios", icon: <Users className={ICON_CLASS} /> },
   {
     href: "/cargar",
     label: "Cargar estado de cuenta",

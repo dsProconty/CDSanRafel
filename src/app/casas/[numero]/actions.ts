@@ -65,7 +65,6 @@ export async function guardarUsuario(
     });
 
   revalidatePath("/casas");
-  revalidatePath("/usuarios");
   return { ok: true };
 }
 
@@ -89,7 +88,6 @@ export async function actualizarAgenda(
     })
     .where(eq(usuarios.casaId, casaId));
   revalidatePath("/casas");
-  revalidatePath("/usuarios");
 }
 
 export async function actualizarComprobante(casaId: number, activo: boolean) {
@@ -98,14 +96,13 @@ export async function actualizarComprobante(casaId: number, activo: boolean) {
     .update(usuarios)
     .set({ comprobanteActivo: activo })
     .where(eq(usuarios.casaId, casaId));
-  revalidatePath("/usuarios");
+  revalidatePath("/casas");
 }
 
 export async function eliminarUsuario(casaId: number) {
   await requireAdmin();
   await db.delete(usuarios).where(eq(usuarios.casaId, casaId));
   revalidatePath("/casas");
-  revalidatePath("/usuarios");
 }
 
 export async function crearDeuda(
