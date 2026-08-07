@@ -8,6 +8,8 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { casas, deudas, usuarios } from "@/db/schema";
 
+type TipoResidente = "propietario" | "arrendatario" | "familiar";
+
 async function requireAdmin() {
   const session = await auth();
   if (session?.user.rol !== "admin") {
@@ -63,7 +65,47 @@ export async function guardarUsuario(
     });
 
   revalidatePath("/casas");
+  revalidatePath("/usuarios");
   return { ok: true };
+}
+
+export async function actualizarAgenda(
+  casaId: number,
+  datos: {
+    cedula: string;
+    telefono: string;
+    telefonoSecundario: string;
+    tipoResidente: TipoResidente;
+  }
+) {
+  await requireAdmin();
+  await db
+    .update(usuarios)
+    .set({
+      cedula: datos.cedula.trim() || null,
+      telefono: datos.telefono.trim() || null,
+      telefonoSecundario: datos.telefonoSecundario.trim() || null,
+      tipoResidente: datos.tipoResidente,
+    })
+    .where(eq(usuarios.casaId, casaId));
+  revalidatePath("/casas");
+  revalidatePath("/usuarios");
+}
+
+export async function actualizarComprobante(casaId: number, activo: boolean) {
+  await requireAdmin();
+  await db
+    .update(usuarios)
+    .set({ comprobanteActivo: activo })
+    .where(eq(usuarios.casaId, casaId));
+  revalidatePath("/usuarios");
+}
+
+export async function eliminarUsuario(casaId: number) {
+  await requireAdmin();
+  await db.delete(usuarios).where(eq(usuarios.casaId, casaId));
+  revalidatePath("/casas");
+  revalidatePath("/usuarios");
 }
 
 export async function crearDeuda(

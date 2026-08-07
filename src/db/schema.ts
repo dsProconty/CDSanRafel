@@ -13,6 +13,12 @@ import {
 
 export const rolUsuarioEnum = pgEnum("rol_usuario", ["admin", "propietario"]);
 
+export const tipoResidenteEnum = pgEnum("tipo_residente", [
+  "propietario",
+  "arrendatario",
+  "familiar",
+]);
+
 export const estadoMovimientoEnum = pgEnum("estado_movimiento", [
   "matched",
   "pendiente_revision",
@@ -43,6 +49,15 @@ export const usuarios = pgTable(
     email: text("email"),
     passwordHash: text("password_hash").notNull(),
     rol: rolUsuarioEnum("rol").notNull().default("propietario"),
+    // Datos de agenda/contacto (fusión de las pantallas "Usuarios" y "Agenda" del sistema viejo)
+    cedula: text("cedula"),
+    telefono: text("telefono"),
+    telefonoSecundario: text("telefono_secundario"),
+    tipoResidente: tipoResidenteEnum("tipo_residente")
+      .notNull()
+      .default("propietario"),
+    comprobanteActivo: boolean("comprobante_activo").notNull().default(true),
+    ultimoAcceso: timestamp("ultimo_acceso"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

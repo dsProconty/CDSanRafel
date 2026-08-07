@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { FormAgenda } from "./form-agenda";
 import { FormDeuda } from "./form-deuda";
 import { FormPropietario } from "./form-propietario";
 import { FormUsuario } from "./form-usuario";
@@ -37,7 +38,13 @@ export default async function CasaDetallePage({
   if (!casa) notFound();
 
   const [usuario] = await db
-    .select({ email: usuarios.email })
+    .select({
+      email: usuarios.email,
+      cedula: usuarios.cedula,
+      telefono: usuarios.telefono,
+      telefonoSecundario: usuarios.telefonoSecundario,
+      tipoResidente: usuarios.tipoResidente,
+    })
     .from(usuarios)
     .where(eq(usuarios.casaId, casa.id))
     .limit(1);
@@ -128,6 +135,25 @@ export default async function CasaDetallePage({
           </p>
           <FormUsuario casaId={casa.id} emailActual={usuario?.email ?? ""} />
         </section>
+
+        {usuario && (
+          <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
+            <h2 className="text-sm font-semibold text-foreground">
+              Datos de contacto
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Reemplaza a las pantallas "Usuarios" y "Agenda" del sistema
+              anterior.
+            </p>
+            <FormAgenda
+              casaId={casa.id}
+              cedulaActual={usuario.cedula ?? ""}
+              telefonoActual={usuario.telefono ?? ""}
+              telefonoSecundarioActual={usuario.telefonoSecundario ?? ""}
+              tipoResidenteActual={usuario.tipoResidente}
+            />
+          </section>
+        )}
 
         <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
           <h2 className="text-sm font-semibold text-foreground">

@@ -8,6 +8,13 @@
       "when": 1786045715806,
       "tag": "0000_curious_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786065843919,
+      "tag": "0001_brainy_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

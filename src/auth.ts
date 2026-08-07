@@ -46,6 +46,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
         if (!passwordValida) return null;
 
+        await db
+          .update(usuarios)
+          .set({ ultimoAcceso: new Date() })
+          .where(eq(usuarios.id, usuario.id));
+
         return {
           id: String(usuario.id),
           rol: usuario.rol,
