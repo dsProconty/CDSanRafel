@@ -138,6 +138,12 @@ async function ResumenCasa({ casaId }: { casaId: number | null }) {
           </div>
         </dl>
       </div>
+      <Link
+        href="/reportes"
+        className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+      >
+        Ver informes económicos del condominio →
+      </Link>
     </div>
   );
 }

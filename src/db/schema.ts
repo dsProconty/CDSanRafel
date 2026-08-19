@@ -27,6 +27,14 @@ export const estadoMovimientoEnum = pgEnum("estado_movimiento", [
 
 export const estadoDeudaEnum = pgEnum("estado_deuda", ["pendiente", "pagada"]);
 
+export const categoriaGastoEnum = pgEnum("categoria_gasto", [
+  "mantenimiento",
+  "operativos",
+  "inversiones",
+  "otros",
+]);
+export type CategoriaGasto = (typeof categoriaGastoEnum.enumValues)[number];
+
 // Catálogo de casas del condominio (159 casas, Bloque A y B)
 export const casas = pgTable(
   "casas",
@@ -231,6 +239,60 @@ export const cargasEstadoCuenta = pgTable("cargas_estado_cuenta", {
   pendienteRevision: integer("pendiente_revision").notNull(),
   sinCatalogar: integer("sin_catalogar").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Informe económico mensual (uno por mes/año), estilo "INFORME ECONÓMICO —
+// MES AÑO" que ya usa el cliente por fuera del sistema. Los ingresos por tipo
+// se sugieren desde el catálogo de tipos de expensa + movimientos sin
+// catalogar, y los egresos se cargan a mano cada mes — ambos quedan
+// guardados como líneas editables antes de generar el PDF final.
+export const reportesFinancieros = pgTable(
+  "reportes_financieros",
+  {
+    id: serial("id").primaryKey(),
+    mes: integer("mes").notNull(), // 1-12
+    anio: integer("anio").notNull(),
+    saldoInicial: numeric("saldo_inicial", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0"),
+    casasPagaron: integer("casas_pagaron").notNull().default(0),
+    casasMora: integer("casas_mora").notNull().default(0),
+    casasTotal: integer("casas_total").notNull().default(0),
+    usuarioId: integer("usuario_id").references(() => usuarios.id),
+    pdfUrl: text("pdf_url"),
+    generadoEn: timestamp("generado_en"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("reportes_financieros_periodo_idx").on(table.mes, table.anio),
+  ]
+);
+
+// Línea de ingreso por tipo dentro de un informe (EXPENSAS, MULTAS, TAGS...).
+// tipoExpensaId null = "No identificado" (dinero recibido sin casa asignada).
+export const reporteIngresoLinea = pgTable("reporte_ingreso_linea", {
+  id: serial("id").primaryKey(),
+  reporteId: integer("reporte_id")
+    .notNull()
+    .references(() => reportesFinancieros.id),
+  tipoExpensaId: integer("tipo_expensa_id").references(() => tiposExpensa.id),
+  etiqueta: text("etiqueta").notNull(),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull().default("0"),
+  orden: integer("orden").notNull().default(0),
+});
+
+// Línea de egreso dentro de un informe, agrupada por categoría fija
+// (mantenimiento/operativos/inversiones/otros) con subtipo libre.
+export const reporteEgresoLinea = pgTable("reporte_egreso_linea", {
+  id: serial("id").primaryKey(),
+  reporteId: integer("reporte_id")
+    .notNull()
+    .references(() => reportesFinancieros.id),
+  categoria: categoriaGastoEnum("categoria").notNull(),
+  subtipo: text("subtipo").notNull(),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull().default("0"),
+  orden: integer("orden").notNull().default(0),
 });
 
 // Casas candidatas sugeridas cuando una referencia matchea con más de 1 casa
