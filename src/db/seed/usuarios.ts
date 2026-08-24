@@ -8,25 +8,36 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { casas, usuarios } from "@/db/schema";
 
-// Uso: npx tsx src/db/seed/usuarios.ts [ruta al USUARIOS.xlsx]
+// Uso: npx tsx src/db/seed/usuarios.ts [ruta a la agenda de residentes .xlsx]
 // El archivo no se versiona (contiene correos/cédulas reales de propietarios),
-// se espera en ./data/USUARIOS.xlsx por defecto. Requiere que las casas ya
-// estén cargadas (npm run db:seed:casas) — cada fila se vincula a una casa
-// existente por número, si no existe se reporta y se salta.
+// se espera en ./data/AGENDA_RESIDENTES.xlsx por defecto. Requiere que las
+// casas ya estén cargadas (npm run db:seed:casas) — cada fila se vincula a
+// una casa existente por número; si no existe se reporta y se salta (así se
+// descartan filas administrativas del sistema viejo como "NO IDENT." o
+// "CAJA CHICA" que no son casas reales).
+//
+// Además de crear/actualizar el usuario, actualiza casas.propietario con el
+// nombre completo de la fila (nombres + apellidos), que hasta ahora se
+// completaba a mano.
 //
 // Password inicial = cédula (tal como documenta el schema, v1 sin flujo de
 // reset). Si una fila no trae cédula, se genera una password aleatoria y se
 // imprime al final para que el admin la comparta manualmente.
 //
-// Columnas esperadas en la hoja (con alias tolerados entre paréntesis):
-//   CASA (Numero)               -> numero de casas.numero, ej "36A"
-//   EMAIL (Correo)               -> obligatorio, único
-//   CEDULA (Cédula)              -> opcional, también es la password inicial
-//   TELEFONO (Teléfono)          -> opcional
-//   TELEFONO_SECUNDARIO (Telefono2, Teléfono 2) -> opcional
-//   TIPO_RESIDENTE (Tipo)        -> propietario|arrendatario|familiar, default propietario
+// Columnas esperadas (con alias tolerados, case-insensitive):
+//   CASA (Numero)                      -> numero de casas.numero, ej "36A"
+//   EMAIL (Correo)                      -> obligatorio, único por usuario
+//   CEDULA (Identificacion)             -> también es la password inicial
+//   NOMBRES / APELLIDOS (Nombre)        -> arma casas.propietario
+//   TELEFONO (Telefono1)                -> opcional
+//   TELEFONO_SECUNDARIO (Telefono2)     -> opcional
+//   TIPO_RESIDENTE (Tiporesidentes_id)  -> propietario|arrendatario|familiar, default propietario
+//
+// El export viejo (Excel de origen numérico) suele perder el cero inicial de
+// cédulas y celulares ecuatorianos (10 dígitos) al guardarlos como número:
+// se detecta y se repone automáticamente.
 
-const filePath = process.argv[2] ?? "data/USUARIOS.xlsx";
+const filePath = process.argv[2] ?? "data/AGENDA_RESIDENTES.xlsx";
 
 type TipoResidente = "propietario" | "arrendatario" | "familiar";
 const TIPOS_VALIDOS: TipoResidente[] = ["propietario", "arrendatario", "familiar"];
@@ -38,7 +49,8 @@ function valorPorAlias(fila: FilaUsuario, alias: string[]): string {
     const normalizado = key.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
     if (alias.includes(normalizado)) {
       const v = fila[key];
-      return v == null ? "" : String(v).trim();
+      const texto = v == null ? "" : String(v).trim();
+      return texto.toLowerCase() === "null" ? "" : texto;
     }
   }
   return "";
@@ -49,6 +61,29 @@ function tipoResidenteDe(valor: string): TipoResidente {
   return TIPOS_VALIDOS.includes(v as TipoResidente) ? (v as TipoResidente) : "propietario";
 }
 
+// Deja solo dígitos. La cédula ecuatoriana siempre tiene 10 dígitos: si
+// Excel la guardó como número y perdió el cero inicial (queda en 9 dígitos),
+// se repone sin condición extra.
+function soloDigitosCedula(valor: string): string {
+  const digitos = valor.replace(/\D/g, "");
+  return digitos.length === 9 ? `0${digitos}` : digitos;
+}
+
+// El celular ecuatoriano (10 dígitos, empieza con "09") sufre el mismo
+// problema pero solo se repone el cero cuando el resultado quedó en 9
+// dígitos empezando con "9" — así no se toca un número extranjero o fijo.
+function soloDigitosTelefono(valor: string): string {
+  const digitos = valor.replace(/\D/g, "");
+  if (digitos.length === 9 && digitos.startsWith("9")) return `0${digitos}`;
+  return digitos;
+}
+
+function nombreCompleto(fila: FilaUsuario): string {
+  const nombres = valorPorAlias(fila, ["nombres", "nombre"]);
+  const apellidos = valorPorAlias(fila, ["apellidos", "apellido"]);
+  return `${nombres} ${apellidos}`.replace(/\s+/g, " ").trim();
+}
+
 async function main() {
   const buffer = readFileSync(filePath);
   const workbook = read(buffer, { type: "buffer" });
@@ -57,27 +92,29 @@ async function main() {
 
   console.log(`Parseadas ${filas.length} filas de "${filePath}".`);
 
+  const casasVistasEnArchivo = new Map<string, number>(); // numero -> fila donde ya se vio
+
   let creados = 0;
   let actualizados = 0;
   let saltados = 0;
   const passwordsGeneradas: { email: string; password: string }[] = [];
 
   for (const [i, fila] of filas.entries()) {
-    const numero = valorPorAlias(fila, ["casa", "numero", "numerocasa"]);
+    const numeroFila = i + 2; // +1 por índice 0-based, +1 por la fila de encabezado
+    const numero = valorPorAlias(fila, ["casa", "numero", "numerocasa"]).replace(/\s+/g, "");
     const email = valorPorAlias(fila, ["email", "correo", "correoelectronico"]).toLowerCase();
-    const cedula = valorPorAlias(fila, ["cedula"]);
-    const telefono = valorPorAlias(fila, ["telefono", "telefono1"]);
-    const telefonoSecundario = valorPorAlias(fila, [
-      "telefonosecundario",
-      "telefono2",
-      "telefonoalterno",
-    ]);
-    const tipoResidente = tipoResidenteDe(
-      valorPorAlias(fila, ["tiporesidente", "tipo"])
+    const cedula = soloDigitosCedula(valorPorAlias(fila, ["cedula", "identificacion"]));
+    const telefono = soloDigitosTelefono(valorPorAlias(fila, ["telefono", "telefono1"]));
+    const telefonoSecundario = soloDigitosTelefono(
+      valorPorAlias(fila, ["telefonosecundario", "telefono2", "telefonoalterno"])
     );
+    const tipoResidente = tipoResidenteDe(
+      valorPorAlias(fila, ["tiporesidente", "tipo", "tiporesidentesid"])
+    );
+    const propietario = nombreCompleto(fila);
 
     if (!numero || !email) {
-      console.warn(`Fila ${i + 2}: falta casa o email, se salta.`);
+      console.warn(`Fila ${numeroFila}: falta casa o email, se salta.`);
       saltados++;
       continue;
     }
@@ -88,10 +125,18 @@ async function main() {
       .where(eq(casas.numero, numero))
       .limit(1);
     if (!casa) {
-      console.warn(`Fila ${i + 2}: no existe la casa "${numero}", se salta.`);
+      console.warn(`Fila ${numeroFila}: no existe la casa "${numero}", se salta.`);
       saltados++;
       continue;
     }
+
+    const filaPrevia = casasVistasEnArchivo.get(numero);
+    if (filaPrevia) {
+      console.warn(
+        `Fila ${numeroFila}: la casa "${numero}" ya apareció en la fila ${filaPrevia} del archivo (con otro usuario) — se sobrescribe con esta fila, revisar manualmente cuál es la correcta.`
+      );
+    }
+    casasVistasEnArchivo.set(numero, numeroFila);
 
     const [existente] = await db
       .select({ id: usuarios.id, casaId: usuarios.casaId })
@@ -100,10 +145,14 @@ async function main() {
       .limit(1);
     if (existente && existente.casaId !== casa.id) {
       console.warn(
-        `Fila ${i + 2}: el correo "${email}" ya está en uso por otra casa, se salta.`
+        `Fila ${numeroFila}: el correo "${email}" ya está en uso por otra casa (misma persona con más de una unidad no soportado aún), se salta.`
       );
       saltados++;
       continue;
+    }
+
+    if (propietario) {
+      await db.update(casas).set({ propietario }).where(eq(casas.id, casa.id));
     }
 
     let password = cedula;
