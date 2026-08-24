@@ -10,6 +10,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed:casas": "tsx src/db/seed/casas.ts",
+    "db:seed:usuarios": "tsx src/db/seed/usuarios.ts",
     "db:seed:admin": "tsx src/db/seed/admin.ts",
     "db:seed:tipos": "tsx src/db/seed/tipos-expensa.ts"
   },
