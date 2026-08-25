@@ -8,6 +8,7 @@ import { FileText, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 import { eliminarBorrador, type FilaReporte } from "./actions";
 
 const ESTADO_FILTROS = ["Todos", "publicado", "borrador"] as const;
@@ -17,6 +18,27 @@ const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
   publicado: "Publicado",
   borrador: "Borrador",
 };
+
+type SortKey = "periodo" | "ingresos" | "egresos" | "saldo" | "mora" | "estado";
+
+function comparar(a: FilaReporte, b: FilaReporte, key: SortKey): number {
+  switch (key) {
+    case "periodo":
+      return a.anio - b.anio || a.mes - b.mes;
+    case "ingresos":
+      return a.totalIngresos - b.totalIngresos;
+    case "egresos":
+      return a.totalEgresos - b.totalEgresos;
+    case "saldo":
+      return a.saldoFinal - b.saldoFinal;
+    case "mora":
+      return a.casasMora - b.casasMora;
+    case "estado":
+      return Number(!!a.pdfUrl) - Number(!!b.pdfUrl);
+    default:
+      return 0;
+  }
+}
 
 export function ListaReportes({
   reportes,
@@ -29,15 +51,18 @@ export function ListaReportes({
   const [pending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "periodo", dir: "desc" });
 
   const filtrados = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
-    return reportes.filter((r) => {
+    const resultado = reportes.filter((r) => {
       if (estadoFiltro !== "Todos" && !!r.pdfUrl !== (estadoFiltro === "publicado")) return false;
       if (t && !r.etiquetaPeriodo.toLowerCase().includes(t)) return false;
       return true;
     });
-  }, [reportes, busqueda, estadoFiltro]);
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [reportes, busqueda, estadoFiltro, sort]);
 
   if (reportes.length === 0) {
     return (
@@ -72,12 +97,12 @@ export function ListaReportes({
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-            <th className="px-4 py-3">Período</th>
-            <th className="px-4 py-3">Ingresos</th>
-            <th className="px-4 py-3">Egresos</th>
-            <th className="px-4 py-3">Saldo final</th>
-            <th className="px-4 py-3">Casas en mora</th>
-            <th className="px-4 py-3">Estado</th>
+            <SortableTh label="Período" sortKey="periodo" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Ingresos" sortKey="ingresos" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Egresos" sortKey="egresos" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Saldo final" sortKey="saldo" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Casas en mora" sortKey="mora" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Estado" sortKey="estado" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
             <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
           </tr>
         </thead>

@@ -6,6 +6,7 @@ import { Eye, FileText, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 import { CasaModal } from "./casa-modal";
 import { EstadoCuentaModal } from "./estado-cuenta-modal";
 
@@ -88,6 +89,56 @@ function PagoBadge({ estado }: { estado: EstadoCasa }) {
   return <span className="text-muted-foreground">—</span>;
 }
 
+type SortKey = "casa" | "estado" | "pago" | "nombre" | "cedula" | "contacto";
+
+function numeroCasaOrden(numero: string): [number, string] {
+  const match = numero.match(/^(\d+)(.*)$/);
+  return match ? [Number(match[1]), match[2]] : [0, numero];
+}
+
+const ESTADO_ORDEN: Record<TipoResidente | "sin_acceso", number> = {
+  propietario: 0,
+  arrendatario: 1,
+  familiar: 2,
+  sin_acceso: 3,
+};
+
+const PAGO_ORDEN: Record<EstadoCasa, number> = { due: 0, ok: 1, none: 2 };
+
+function comparar(a: FilaCasa, b: FilaCasa, key: SortKey): number {
+  switch (key) {
+    case "casa": {
+      const [numA, letraA] = numeroCasaOrden(a.numero);
+      const [numB, letraB] = numeroCasaOrden(b.numero);
+      return numA - numB || letraA.localeCompare(letraB);
+    }
+    case "estado":
+      return (
+        ESTADO_ORDEN[a.tipoResidente ?? "sin_acceso"] -
+        ESTADO_ORDEN[b.tipoResidente ?? "sin_acceso"]
+      );
+    case "pago":
+      return PAGO_ORDEN[a.estado] - PAGO_ORDEN[b.estado];
+    case "nombre":
+      if (!a.propietario && !b.propietario) return 0;
+      if (!a.propietario) return 1;
+      if (!b.propietario) return -1;
+      return a.propietario.localeCompare(b.propietario);
+    case "cedula":
+      if (!a.cedula && !b.cedula) return 0;
+      if (!a.cedula) return 1;
+      if (!b.cedula) return -1;
+      return a.cedula.localeCompare(b.cedula);
+    case "contacto":
+      if (!a.email && !b.email) return 0;
+      if (!a.email) return 1;
+      if (!b.email) return -1;
+      return a.email.localeCompare(b.email);
+    default:
+      return 0;
+  }
+}
+
 export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
   const [bloque, setBloque] = useState<Bloque>("A");
   const [busqueda, setBusqueda] = useState("");
@@ -95,10 +146,11 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
   const [pagoFiltro, setPagoFiltro] = useState<PagoFiltro>("Todos");
   const [casaAbierta, setCasaAbierta] = useState<string | null>(null);
   const [casaEstadoCuenta, setCasaEstadoCuenta] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "casa", dir: "asc" });
 
   const filtradas = useMemo(() => {
     const t = busqueda.trim();
-    return casas.filter((c) => {
+    const resultado = casas.filter((c) => {
       if (!esDelBloque(c, bloque)) return false;
       if (estadoFiltro !== "Todos") {
         const estadoCasa = c.tipoResidente ?? "sin_acceso";
@@ -108,7 +160,9 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
       if (t && !coincide(c, t)) return false;
       return true;
     });
-  }, [casas, bloque, estadoFiltro, pagoFiltro, busqueda]);
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [casas, bloque, estadoFiltro, pagoFiltro, busqueda, sort]);
 
   return (
     <div>
@@ -160,12 +214,48 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
         <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-              <th className="px-4 py-3">Casa</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Pago</th>
-              <th className="px-4 py-3">Nombre</th>
-              <th className="px-4 py-3">Cédula</th>
-              <th className="px-4 py-3">Contacto</th>
+              <SortableTh
+                label="Casa"
+                sortKey="casa"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
+              <SortableTh
+                label="Estado"
+                sortKey="estado"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
+              <SortableTh
+                label="Pago"
+                sortKey="pago"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
+              <SortableTh
+                label="Nombre"
+                sortKey="nombre"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
+              <SortableTh
+                label="Cédula"
+                sortKey="cedula"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
+              <SortableTh
+                label="Contacto"
+                sortKey="contacto"
+                sort={sort}
+                onSort={(k) => setSort((s) => proximoSort(s, k))}
+                className="px-4 py-3"
+              />
               <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>

@@ -8,7 +8,27 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 import { alternarActivoConcepto, type Concepto } from "./actions";
+
+type SortKey = "nombre" | "tipo" | "monto" | "descripcion" | "estado";
+
+function comparar(a: Concepto, b: Concepto, key: SortKey): number {
+  switch (key) {
+    case "nombre":
+      return a.nombre.localeCompare(b.nombre);
+    case "tipo":
+      return a.tipoNombre.localeCompare(b.tipoNombre);
+    case "monto":
+      return Number(a.montoDefault) - Number(b.montoDefault);
+    case "descripcion":
+      return (a.descripcionDefault ?? "").localeCompare(b.descripcionDefault ?? "");
+    case "estado":
+      return Number(a.activo) - Number(b.activo);
+    default:
+      return 0;
+  }
+}
 import { ConceptoModal } from "./concepto-modal";
 
 const ESTADO_FILTROS = ["Todos", "activo", "inactivo"] as const;
@@ -33,6 +53,7 @@ export function ListaConceptos({
   const [busqueda, setBusqueda] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "nombre", dir: "asc" });
 
   const modalAbierto = creando || editando !== null;
 
@@ -43,13 +64,15 @@ export function ListaConceptos({
 
   const filtrados = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
-    return conceptos.filter((c) => {
+    const resultado = conceptos.filter((c) => {
       if (tipoFiltro !== "Todos" && c.tipoNombre !== tipoFiltro) return false;
       if (estadoFiltro !== "Todos" && c.activo !== (estadoFiltro === "activo")) return false;
       if (t && !c.nombre.toLowerCase().includes(t)) return false;
       return true;
     });
-  }, [conceptos, busqueda, tipoFiltro, estadoFiltro]);
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [conceptos, busqueda, tipoFiltro, estadoFiltro, sort]);
 
   return (
     <>
@@ -100,11 +123,11 @@ export function ListaConceptos({
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-                  <th className="px-4 py-3">Nombre</th>
-                  <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3">Monto por defecto</th>
-                  <th className="px-4 py-3">Descripción por defecto</th>
-                  <th className="px-4 py-3">Estado</th>
+                  <SortableTh label="Nombre" sortKey="nombre" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+                  <SortableTh label="Tipo" sortKey="tipo" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+                  <SortableTh label="Monto por defecto" sortKey="monto" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+                  <SortableTh label="Descripción por defecto" sortKey="descripcion" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+                  <SortableTh label="Estado" sortKey="estado" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
                   <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>

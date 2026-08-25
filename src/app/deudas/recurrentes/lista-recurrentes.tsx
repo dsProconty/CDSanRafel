@@ -7,6 +7,7 @@ import { Pause, Play, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 import {
   generarSiguienteAhora,
   pausarRecurrente,
@@ -23,17 +24,52 @@ const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
   completo: "Completo",
 };
 
+type SortKey = "concepto" | "monto" | "inicio" | "progreso" | "excluidas" | "creadoPor" | "estado";
+
+const ESTADO_RECURRENTE_ORDEN: Record<EstadoFiltro, number> = {
+  Todos: -1,
+  activo: 0,
+  pausado: 1,
+  completo: 2,
+};
+
+function estadoDe(r: Recurrente): "activo" | "pausado" | "completo" {
+  const completo = r.totalPeriodos !== null && r.periodosGenerados >= r.totalPeriodos;
+  return completo ? "completo" : r.activo ? "activo" : "pausado";
+}
+
+function comparar(a: Recurrente, b: Recurrente, key: SortKey): number {
+  switch (key) {
+    case "concepto":
+      return a.conceptoNombre.localeCompare(b.conceptoNombre);
+    case "monto":
+      return Number(a.monto) - Number(b.monto);
+    case "inicio":
+      return a.fechaInicio.localeCompare(b.fechaInicio);
+    case "progreso":
+      return a.periodosGenerados - b.periodosGenerados;
+    case "excluidas":
+      return a.casasExcluidas - b.casasExcluidas;
+    case "creadoPor":
+      return (a.usuarioEmail ?? "").localeCompare(b.usuarioEmail ?? "");
+    case "estado":
+      return ESTADO_RECURRENTE_ORDEN[estadoDe(a)] - ESTADO_RECURRENTE_ORDEN[estadoDe(b)];
+    default:
+      return 0;
+  }
+}
+
 export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "concepto", dir: "asc" });
 
   const filtrados = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
-    return recurrentes.filter((r) => {
-      const completo = r.totalPeriodos !== null && r.periodosGenerados >= r.totalPeriodos;
-      const estado = completo ? "completo" : r.activo ? "activo" : "pausado";
+    const resultado = recurrentes.filter((r) => {
+      const estado = estadoDe(r);
       if (estadoFiltro !== "Todos" && estado !== estadoFiltro) return false;
       if (
         t &&
@@ -44,7 +80,9 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
       }
       return true;
     });
-  }, [recurrentes, busqueda, estadoFiltro]);
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [recurrentes, busqueda, estadoFiltro, sort]);
 
   if (recurrentes.length === 0) {
     return (
@@ -77,13 +115,13 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
       <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-            <th className="px-4 py-3">Concepto</th>
-            <th className="px-4 py-3">Monto/mes</th>
-            <th className="px-4 py-3">Inicio</th>
-            <th className="px-4 py-3">Progreso</th>
-            <th className="px-4 py-3">Excluidas</th>
-            <th className="px-4 py-3">Creado por</th>
-            <th className="px-4 py-3">Estado</th>
+            <SortableTh label="Concepto" sortKey="concepto" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Monto/mes" sortKey="monto" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Inicio" sortKey="inicio" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Progreso" sortKey="progreso" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Excluidas" sortKey="excluidas" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Creado por" sortKey="creadoPor" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Estado" sortKey="estado" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
             <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
           </tr>
         </thead>

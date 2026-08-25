@@ -6,6 +6,7 @@ import { Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 import { anularLoteDeudaMasiva, type LoteDeudaMasiva } from "./actions";
 
 export type FilaLote = Omit<
@@ -26,14 +27,36 @@ const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
   anulada: "Anulada",
 };
 
+type SortKey = "fecha" | "concepto" | "monto" | "descripcion" | "casas" | "creadaPor";
+
+function comparar(a: FilaLote, b: FilaLote, key: SortKey): number {
+  switch (key) {
+    case "fecha":
+      return a.fecha.localeCompare(b.fecha);
+    case "concepto":
+      return a.concepto.localeCompare(b.concepto);
+    case "monto":
+      return Number(a.monto) - Number(b.monto);
+    case "descripcion":
+      return (a.descripcion ?? "").localeCompare(b.descripcion ?? "");
+    case "casas":
+      return a.casasAfectadas - b.casasAfectadas;
+    case "creadaPor":
+      return (a.usuarioEmail ?? "").localeCompare(b.usuarioEmail ?? "");
+    default:
+      return 0;
+  }
+}
+
 export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
   const [pending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "fecha", dir: "desc" });
 
   const filtradas = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
-    return filas.filter((f) => {
+    const resultado = filas.filter((f) => {
       if (estadoFiltro !== "Todos" && f.anulada !== (estadoFiltro === "anulada")) return false;
       if (
         t &&
@@ -45,7 +68,9 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
       }
       return true;
     });
-  }, [filas, busqueda, estadoFiltro]);
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [filas, busqueda, estadoFiltro, sort]);
 
   if (filas.length === 0) {
     return (
@@ -78,12 +103,12 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-            <th className="px-4 py-3">Fecha</th>
-            <th className="px-4 py-3">Concepto</th>
-            <th className="px-4 py-3">Monto</th>
-            <th className="px-4 py-3">Descripción</th>
-            <th className="px-4 py-3">Casas</th>
-            <th className="px-4 py-3">Creada por</th>
+            <SortableTh label="Fecha" sortKey="fecha" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Concepto" sortKey="concepto" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Monto" sortKey="monto" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Descripción" sortKey="descripcion" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Casas" sortKey="casas" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+            <SortableTh label="Creada por" sortKey="creadaPor" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
             <th className="sticky right-0 bg-muted px-4 py-3 text-right">Estado</th>
           </tr>
         </thead>

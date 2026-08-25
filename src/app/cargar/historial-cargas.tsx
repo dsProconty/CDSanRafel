@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Eye, X } from "lucide-react";
 
 import { SearchInput } from "@/components/ui/search-input";
+import { proximoSort, SortableTh, type SortState } from "@/components/ui/sortable-th";
 
 export type FilaHistorial = {
   id: number;
@@ -21,19 +22,46 @@ export type FilaHistorial = {
   sinCatalogar: number;
 };
 
+type SortKey = "fecha" | "usuario" | "archivo" | "creditos" | "abonos" | "pendientes" | "sinCatalogar";
+
+function comparar(a: FilaHistorial, b: FilaHistorial, key: SortKey): number {
+  switch (key) {
+    case "fecha":
+      return a.id - b.id; // el id crece con la fecha de carga
+    case "usuario":
+      return (a.usuarioEmail ?? "").localeCompare(b.usuarioEmail ?? "");
+    case "archivo":
+      return a.nombreArchivo.localeCompare(b.nombreArchivo);
+    case "creditos":
+      return a.creditos - b.creditos;
+    case "abonos":
+      return a.matchedAutomatico - b.matchedAutomatico;
+    case "pendientes":
+      return a.pendienteRevision - b.pendienteRevision;
+    case "sinCatalogar":
+      return a.sinCatalogar - b.sinCatalogar;
+    default:
+      return 0;
+  }
+}
+
 export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
   const [detalle, setDetalle] = useState<FilaHistorial | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "fecha", dir: "desc" });
 
   const filtradas = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
-    if (!t) return filas;
-    return filas.filter(
-      (f) =>
-        (f.usuarioEmail ?? "").toLowerCase().includes(t) ||
-        f.nombreArchivo.toLowerCase().includes(t)
-    );
-  }, [filas, busqueda]);
+    const resultado = t
+      ? filas.filter(
+          (f) =>
+            (f.usuarioEmail ?? "").toLowerCase().includes(t) ||
+            f.nombreArchivo.toLowerCase().includes(t)
+        )
+      : [...filas];
+    const signo = sort.dir === "asc" ? 1 : -1;
+    return resultado.sort((a, b) => signo * comparar(a, b, sort.key));
+  }, [filas, busqueda, sort]);
 
   if (filas.length === 0) {
     return (
@@ -56,13 +84,13 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
         <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-              <th className="px-4 py-3">Fecha</th>
-              <th className="px-4 py-3">Usuario</th>
-              <th className="px-4 py-3">Archivo</th>
-              <th className="px-4 py-3">Créditos</th>
-              <th className="px-4 py-3">Abonos automáticos</th>
-              <th className="px-4 py-3">Pendientes</th>
-              <th className="px-4 py-3">Sin catalogar</th>
+              <SortableTh label="Fecha" sortKey="fecha" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Usuario" sortKey="usuario" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Archivo" sortKey="archivo" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Créditos" sortKey="creditos" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Abonos automáticos" sortKey="abonos" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Pendientes" sortKey="pendientes" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
+              <SortableTh label="Sin catalogar" sortKey="sinCatalogar" sort={sort} onSort={(k) => setSort((s) => proximoSort(s, k))} className="px-4 py-3" />
               <th className="sticky right-0 bg-muted px-4 py-3 text-right">Detalle</th>
             </tr>
           </thead>
