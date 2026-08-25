@@ -4,10 +4,11 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { CategoriaGasto } from "@/db/schema";
+import type { PresupuestoTree } from "../../egresos/categorias/actions";
 import {
   actualizarLineaEgreso,
   actualizarLineaIngreso,
@@ -20,25 +21,43 @@ import {
   type ReporteDetalle,
 } from "../actions";
 
-const CATEGORIAS: { value: CategoriaGasto; label: string }[] = [
-  { value: "mantenimiento", label: "Mantenimiento" },
-  { value: "operativos", label: "Operativos" },
-  { value: "inversiones", label: "Inversiones" },
-  { value: "otros", label: "Otros" },
-];
-
 function money(n: number) {
   return `$${n.toFixed(2)}`;
 }
 
-export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
+function construirOpcionesClase(presupuesto: PresupuestoTree) {
+  const tiposActivos = new Map(presupuesto.tipos.filter((t) => t.activo).map((t) => [t.id, t]));
+  const subtiposActivos = presupuesto.subtipos.filter((s) => s.activo && tiposActivos.has(s.tipoId));
+  const subtipoPorId = new Map(subtiposActivos.map((s) => [s.id, s]));
+
+  return presupuesto.clases
+    .filter((c) => c.activo && subtipoPorId.has(c.subtipoId))
+    .map((c) => {
+      const subtipo = subtipoPorId.get(c.subtipoId)!;
+      const tipo = tiposActivos.get(subtipo.tipoId)!;
+      return {
+        id: c.id,
+        label: `${tipo.nombre} › ${subtipo.nombre} › ${c.nombre}`,
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function EditorReporte({
+  detalle,
+  presupuesto,
+}: {
+  detalle: ReporteDetalle;
+  presupuesto: PresupuestoTree;
+}) {
+  const opcionesClase = useMemo(() => construirOpcionesClase(presupuesto), [presupuesto]);
   const router = useRouter();
   const [saldoInicial, setSaldoInicial] = useState(detalle.saldoInicial);
   const [lineasIngreso, setLineasIngreso] = useState(detalle.lineasIngreso);
   const [lineasEgreso, setLineasEgreso] = useState(detalle.lineasEgreso);
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
   const [nuevoMontoIngreso, setNuevoMontoIngreso] = useState("");
-  const [nuevaCategoria, setNuevaCategoria] = useState<CategoriaGasto>("mantenimiento");
+  const [nuevaClaseId, setNuevaClaseId] = useState("");
   const [nuevoSubtipo, setNuevoSubtipo] = useState("");
   const [nuevoMontoEgreso, setNuevoMontoEgreso] = useState("");
   const [pdfUrl, setPdfUrl] = useState(detalle.pdfUrl);
@@ -215,14 +234,21 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
       <section>
         <h2 className="text-base font-semibold text-foreground">Egresos</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Cargá cada gasto del mes con su categoría.
+          Cargá cada gasto del mes. Si no le asignás una clasificación, el
+          sistema intenta autoclasificarlo por palabra clave (servicios fijos
+          como teléfono/internet/agua/luz) — el resto queda &quot;pendiente
+          de clasificar&quot; hasta que lo clasifiques acá o desde{" "}
+          <span className="font-medium text-foreground">
+            Catálogo → Egresos
+          </span>
+          . No se puede generar el PDF con egresos pendientes.
         </p>
         <div className="mt-3 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-                <th className="px-4 py-2.5">Categoría</th>
-                <th className="px-4 py-2.5">Subtipo</th>
+                <th className="px-4 py-2.5">Gasto</th>
+                <th className="px-4 py-2.5">Clasificación</th>
                 <th className="px-4 py-2.5">Monto</th>
                 <th className="px-4 py-2.5 text-right">​</th>
               </tr>
@@ -230,27 +256,6 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
             <tbody className="divide-y divide-border">
               {lineasEgreso.map((linea) => (
                 <tr key={linea.id}>
-                  <td className="px-4 py-2">
-                    <select
-                      value={linea.categoria}
-                      onChange={(e) => {
-                        const categoria = e.target.value as CategoriaGasto;
-                        setLineasEgreso((prev) =>
-                          prev.map((l) => (l.id === linea.id ? { ...l, categoria } : l))
-                        );
-                        startTransition(async () => {
-                          await actualizarLineaEgreso(linea.id, detalle.id, categoria, linea.subtipo, Number(linea.monto || 0));
-                        });
-                      }}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                    >
-                      {CATEGORIAS.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
                   <td className="px-4 py-2">
                     <Input
                       value={linea.subtipo}
@@ -261,11 +266,38 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
                       }
                       onBlur={() => {
                         startTransition(async () => {
-                          await actualizarLineaEgreso(linea.id, detalle.id, linea.categoria, linea.subtipo, Number(linea.monto || 0));
+                          await actualizarLineaEgreso(linea.id, detalle.id, linea.claseId, linea.subtipo, Number(linea.monto || 0));
                         });
                       }}
                       className="h-8 w-56"
                     />
+                  </td>
+                  <td className="px-4 py-2">
+                    <select
+                      value={linea.claseId ?? ""}
+                      onChange={(e) => {
+                        const claseId = e.target.value ? Number(e.target.value) : null;
+                        setLineasEgreso((prev) =>
+                          prev.map((l) => (l.id === linea.id ? { ...l, claseId } : l))
+                        );
+                        startTransition(async () => {
+                          await actualizarLineaEgreso(linea.id, detalle.id, claseId, linea.subtipo, Number(linea.monto || 0));
+                        });
+                      }}
+                      className="h-8 w-64 rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="">Pendiente de clasificar</option>
+                      {opcionesClase.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    {linea.claseId === null && (
+                      <Badge variant="warning" className="ml-2">
+                        Pendiente
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <Input
@@ -279,7 +311,7 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
                       }
                       onBlur={() => {
                         startTransition(async () => {
-                          await actualizarLineaEgreso(linea.id, detalle.id, linea.categoria, linea.subtipo, Number(linea.monto || 0));
+                          await actualizarLineaEgreso(linea.id, detalle.id, linea.claseId, linea.subtipo, Number(linea.monto || 0));
                         });
                       }}
                       className="h-8 w-28"
@@ -321,21 +353,6 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
         </div>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <div>
-            <Label htmlFor="nuevaCategoria">Categoría</Label>
-            <select
-              id="nuevaCategoria"
-              value={nuevaCategoria}
-              onChange={(e) => setNuevaCategoria(e.target.value as CategoriaGasto)}
-              className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {CATEGORIAS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
             <Label htmlFor="nuevoSubtipo">Gasto</Label>
             <Input
               id="nuevoSubtipo"
@@ -344,6 +361,22 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
               placeholder="Ej. Servicio de seguridad privada"
               className="h-9 w-56"
             />
+          </div>
+          <div>
+            <Label htmlFor="nuevaClase">Clasificación (opcional)</Label>
+            <select
+              id="nuevaClase"
+              value={nuevaClaseId}
+              onChange={(e) => setNuevaClaseId(e.target.value)}
+              className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="">Autoclasificar / pendiente</option>
+              {opcionesClase.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <Label htmlFor="nuevoMontoEgreso">Monto</Label>
@@ -363,23 +396,17 @@ export function EditorReporte({ detalle }: { detalle: ReporteDetalle }) {
             disabled={pending}
             onClick={() => {
               startTransition(async () => {
+                const claseId = nuevaClaseId ? Number(nuevaClaseId) : null;
                 const resultado = await agregarLineaEgreso(
                   detalle.id,
-                  nuevaCategoria,
+                  claseId,
                   nuevoSubtipo,
                   Number(nuevoMontoEgreso || 0)
                 );
                 if (resultado.ok) {
-                  setLineasEgreso((prev) => [
-                    ...prev,
-                    {
-                      id: resultado.id,
-                      categoria: nuevaCategoria,
-                      subtipo: nuevoSubtipo.trim(),
-                      monto: (Number(nuevoMontoEgreso) || 0).toFixed(2),
-                    },
-                  ]);
+                  router.refresh();
                   setNuevoSubtipo("");
+                  setNuevaClaseId("");
                   setNuevoMontoEgreso("");
                 } else {
                   setError(resultado.error);

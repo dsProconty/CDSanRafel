@@ -7,11 +7,13 @@ import { put } from "@vercel/blob";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import {
+  presupuestoClase,
+  presupuestoSubtipo,
+  presupuestoTipo,
   reporteEgresoLinea,
   reporteIngresoLinea,
   reportesFinancieros,
   usuarios,
-  type CategoriaGasto,
 } from "@/db/schema";
 import {
   calcularEstadoCasas,
@@ -24,6 +26,27 @@ async function requireAdmin() {
   const session = await auth();
   if (session?.user.rol !== "admin") return null;
   return session;
+}
+
+// Autoclasificación de servicios fijos recurrentes (teléfono, internet, agua,
+// luz): si el texto del gasto matchea alguna palabra clave de una clase del
+// presupuesto, se asigna sola sin que el admin tenga que clasificarla a mano
+// (pedido del cliente, ago 2026). El resto queda "pendiente de clasificar"
+// (claseId null) hasta que el admin la clasifique desde el editor.
+async function intentarAutoclasificar(subtipo: string): Promise<number | null> {
+  const clases = await db
+    .select({ id: presupuestoClase.id, palabrasClave: presupuestoClase.palabrasClave })
+    .from(presupuestoClase)
+    .where(and(eq(presupuestoClase.activo, true), isNotNull(presupuestoClase.palabrasClave)));
+
+  const texto = subtipo.toLowerCase();
+  for (const c of clases) {
+    const palabras = (c.palabrasClave ?? "").split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+    if (palabras.some((p) => texto.includes(p))) {
+      return c.id;
+    }
+  }
+  return null;
 }
 
 function totales(
@@ -186,7 +209,15 @@ export type ReporteDetalle = {
   casasTotal: number;
   pdfUrl: string | null;
   lineasIngreso: { id: number; etiqueta: string; monto: string }[];
-  lineasEgreso: { id: number; categoria: CategoriaGasto; subtipo: string; monto: string }[];
+  lineasEgreso: {
+    id: number;
+    claseId: number | null;
+    tipoNombre: string | null;
+    subtipoNombre: string | null;
+    claseNombre: string | null;
+    subtipo: string;
+    monto: string;
+  }[];
 };
 
 export async function obtenerReporteDetalle(id: number): Promise<ReporteDetalle | null> {
@@ -212,11 +243,17 @@ export async function obtenerReporteDetalle(id: number): Promise<ReporteDetalle 
     db
       .select({
         id: reporteEgresoLinea.id,
-        categoria: reporteEgresoLinea.categoria,
+        claseId: reporteEgresoLinea.claseId,
+        tipoNombre: presupuestoTipo.nombre,
+        subtipoNombre: presupuestoSubtipo.nombre,
+        claseNombre: presupuestoClase.nombre,
         subtipo: reporteEgresoLinea.subtipo,
         monto: reporteEgresoLinea.monto,
       })
       .from(reporteEgresoLinea)
+      .leftJoin(presupuestoClase, eq(presupuestoClase.id, reporteEgresoLinea.claseId))
+      .leftJoin(presupuestoSubtipo, eq(presupuestoSubtipo.id, presupuestoClase.subtipoId))
+      .leftJoin(presupuestoTipo, eq(presupuestoTipo.id, presupuestoSubtipo.tipoId))
       .where(eq(reporteEgresoLinea.reporteId, id))
       .orderBy(asc(reporteEgresoLinea.orden)),
   ]);
@@ -298,7 +335,7 @@ export async function eliminarLineaIngreso(id: number, reporteId: number): Promi
 
 export async function agregarLineaEgreso(
   reporteId: number,
-  categoria: CategoriaGasto,
+  claseId: number | null,
   subtipo: string,
   monto: number
 ): Promise<AgregarLineaResultado> {
@@ -311,11 +348,12 @@ export async function agregarLineaEgreso(
     .where(eq(reporteEgresoLinea.reporteId, reporteId))
     .orderBy(desc(reporteEgresoLinea.orden))
     .limit(1);
+  const claseFinal = claseId ?? (await intentarAutoclasificar(subtipo));
   const [linea] = await db
     .insert(reporteEgresoLinea)
     .values({
       reporteId,
-      categoria,
+      claseId: claseFinal,
       subtipo: subtipo.trim(),
       monto: monto.toFixed(2),
       orden: (maxOrden ?? 0) + 1,
@@ -328,7 +366,7 @@ export async function agregarLineaEgreso(
 export async function actualizarLineaEgreso(
   id: number,
   reporteId: number,
-  categoria: CategoriaGasto,
+  claseId: number | null,
   subtipo: string,
   monto: number
 ): Promise<Resultado> {
@@ -336,7 +374,7 @@ export async function actualizarLineaEgreso(
   if (!session) return { ok: false, error: "No autorizado." };
   await db
     .update(reporteEgresoLinea)
-    .set({ categoria, subtipo: subtipo.trim(), monto: monto.toFixed(2) })
+    .set({ claseId, subtipo: subtipo.trim(), monto: monto.toFixed(2) })
     .where(eq(reporteEgresoLinea.id, id));
   revalidatePath(`/reportes/${reporteId}`);
   return { ok: true };
@@ -378,6 +416,13 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
   if (!detalle) return { ok: false, error: "El informe no existe." };
   if (detalle.lineasEgreso.length === 0) {
     return { ok: false, error: "Cargá al menos un gasto antes de generar el PDF." };
+  }
+  const sinClasificar = detalle.lineasEgreso.filter((l) => l.claseId === null).length;
+  if (sinClasificar > 0) {
+    return {
+      ok: false,
+      error: `Hay ${sinClasificar} egreso${sinClasificar !== 1 ? "s" : ""} pendiente${sinClasificar !== 1 ? "s" : ""} de clasificar. Asignale tipo/subtipo/clase antes de generar el PDF.`,
+    };
   }
 
   const t = totales(detalle.lineasIngreso, detalle.lineasEgreso, detalle.saldoInicial);
@@ -447,7 +492,7 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
     casasTotal: detalle.casasTotal,
     lineasIngreso: detalle.lineasIngreso.map((l) => ({ etiqueta: l.etiqueta, monto: Number(l.monto) })),
     lineasEgreso: detalle.lineasEgreso.map((l) => ({
-      categoria: l.categoria,
+      categoria: l.tipoNombre ?? "Sin clasificar",
       subtipo: l.subtipo,
       monto: Number(l.monto),
     })),

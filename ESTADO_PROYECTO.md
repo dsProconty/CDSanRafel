@@ -146,8 +146,9 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático + colas de revisión manual (acordeones), buscador + orden en el historial |
 | `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
+| `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
 | `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
-| `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos manuales, botón "Generar y publicar PDF" |
+| `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase; no se puede generar el PDF con egresos pendientes —, botón "Generar y publicar PDF" |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
 
 Todas las tablas del sistema comparten los mismos componentes chicos
@@ -181,11 +182,76 @@ selector de modo.
 - Menú lateral: `src/components/app-shell.tsx` (arma `NAV_ADMIN`, **solo
   visible para admin** — los propietarios no tienen sidebar, solo el header).
   `src/components/sidebar-nav.tsx` soporta items planos y grupos
-  desplegables (`children: {href,label}[]`), ej. "Catálogo" con "Deudas"
-  adentro.
+  desplegables (`children: {href,label}[]`), ej. "Catálogo" con "Deudas" y
+  "Egresos" adentro.
 - Migraciones: `npx drizzle-kit generate` (con `DATABASE_URL` dummy) genera
   el `.sql` en `drizzle/` + snapshot en `drizzle/meta/`. Nunca se edita un
-  `.sql` ya generado a mano — si hace falta ajustar, se regenera.
+  `.sql` ya generado a mano — si hace falta ajustar, se regenera. Cuando el
+  cambio incluye datos que no se pueden migrar automáticamente (ej. backfill
+  de una columna nueva a partir de una vieja), sí es válido agregar a mano
+  sentencias `INSERT`/`UPDATE` extra al `.sql` recién generado por
+  drizzle-kit, entre los `--> statement-breakpoint` (así se hizo en la
+  `0007` y en la `0008`) — lo que nunca se toca a mano son las sentencias
+  DDL que sí generó drizzle-kit.
+- **Gotcha de generate con prompts interactivos**: si el cambio de schema
+  incluye renombrar/quitar una columna en la misma tabla donde se agrega
+  otra del mismo tipo, `drizzle-kit generate` pregunta interactivamente
+  "¿fue un rename?" — y en este entorno (sin TTY) eso hace que el comando
+  falle con "Interactive prompts require a TTY terminal". Solución: separar
+  el cambio en 2 pasos — generar primero una migración que solo AGREGA
+  columnas/tablas (dejando la vieja columna intacta), commitear ese estado,
+  y recién en un segundo `generate` (con la columna vieja ya removida del
+  schema.ts) generar la migración que solo DROPea — un `generate` puramente
+  aditivo o puramente de baja nunca pregunta nada.
+- **Gotcha de journal.json desincronizado**: en esta sesión se encontró que
+  `drizzle/0007_noisy_madame_hydra.sql` (la migración de "usuario puede tener
+  varias casas") existía como archivo y su snapshot (`0007_snapshot.json`)
+  estaba bien, pero nunca se agregó su entrada a `drizzle/meta/_journal.json`
+  — probablemente un commit incompleto de la sesión anterior. Eso hacía que
+  `drizzle-kit generate` calculara el diff contra el snapshot equivocado. Se
+  arregló agregando a mano la entrada faltante en `_journal.json` (mismo
+  `id`/`prevId` que ya traía el snapshot, no hace falta tocarlo). Si un
+  `generate` da resultados raros (tablas/columnas que "reaparecen"), lo
+  primero a chequear es que `_journal.json` tenga una entrada por cada
+  `drizzle/NNNN_*.sql` que exista en el repo.
+
+## Clasificación de egresos en 3 niveles (desde ago 2026)
+
+El cliente (Christian) pidió por transcripción de audio con su jefe que los
+egresos ya no tengan una categoría fija (mantenimiento/operativos/
+inversiones/otros como enum), sino que se clasifiquen con un catálogo de
+presupuesto en 3 niveles: **Tipo → Subtipo → Clase** (ej. Tipo "Operativos" →
+Subtipo "Servicios básicos" → Clase "Internet"). Reglas del pedido:
+
+- Un egreso cargado sin clasificación explícita queda **"pendiente de
+  clasificar"** (`reporteEgresoLinea.claseId = null`) — el admin lo clasifica
+  después desde el editor del informe o desde `/egresos/categorias`.
+- **Excepción — servicios fijos recurrentes** (teléfono, internet, agua,
+  luz): como son pagos automáticos de la cuenta y siempre van a la misma
+  clase, se **autoclasifican solos** por palabra clave (`presupuestoClase.
+  palabrasClave`, ej. "internet,netlife,cnt") matcheada contra el texto del
+  gasto — sin necesidad de IA (el cliente lo hace hoy a mano con ChatGPT,
+  pero explícitamente no quiere IA en el sistema).
+- El PDF del informe **no se puede generar con egresos pendientes** —
+  `generarPdfReporte` lo bloquea y dice cuántos faltan clasificar.
+
+Esquema: `presupuestoTipo` / `presupuestoSubtipo` / `presupuestoClase`
+(migraciones `0008`+`0009`, reemplazan el enum `categoria_gasto` fijo). Se
+sembró un placeholder (Mantenimiento/Operativos/Inversiones/Otros como Tipo,
+con una Clase "General" en cada uno para no dejar los egresos ya cargados
+como pendientes de golpe, + Clases de servicios básicos bajo "Operativos" con
+palabras clave) — **el cliente todavía tiene que compartir la lista real de
+ítems del presupuesto**, que se carga después vía la UI de `/egresos/
+categorias` sin tocar código.
+
+**Pendiente / bloqueado en esta sesión:** el cliente mencionó que él valida
+manualmente contra el estado de cuenta del banco cuáles son esos pagos fijos.
+Para autoclasificar directamente desde la fila del Excel bancario (en vez de
+depender del texto que el admin tipea a mano en "Gasto") haría falta ver un
+Excel real de ejemplo con columnas de referencia/beneficiario — no había
+ninguno disponible en esta sesión (`data/` no está versionado). Cuando el
+cliente lo comparta, falta evaluar si conviene extender esto al pipeline de
+`/cargar` (que hoy solo procesa créditos, ver limitación de débitos abajo).
 
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 

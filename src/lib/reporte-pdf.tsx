@@ -1,7 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 
 import { NOMBRES_MES } from "./reporte-financiero";
-import type { CategoriaGasto } from "@/db/schema";
 
 export type ReportePdfData = {
   mes: number;
@@ -14,18 +13,10 @@ export type ReportePdfData = {
   casasMora: number;
   casasTotal: number;
   lineasIngreso: { etiqueta: string; monto: number }[];
-  lineasEgreso: { categoria: CategoriaGasto; subtipo: string; monto: number }[];
+  lineasEgreso: { categoria: string; subtipo: string; monto: number }[];
   historicoSaldo: { etiqueta: string; saldoFinal: number }[];
   comparativoMeses: { etiqueta: string; ingresos: number; egresos: number }[];
 };
-
-const ETIQUETA_CATEGORIA: Record<CategoriaGasto, string> = {
-  mantenimiento: "GASTOS MANTENIMIENTO",
-  operativos: "GASTOS OPERATIVOS",
-  inversiones: "GASTOS INVERSIONES",
-  otros: "OTROS",
-};
-const ORDEN_CATEGORIA: CategoriaGasto[] = ["mantenimiento", "operativos", "inversiones", "otros"];
 
 const AZUL = "#1d4e6b";
 const AZUL_CLARO = "#2f7ba3";
@@ -153,11 +144,12 @@ function GroupedBarChart({
 }
 
 function ReporteDocument({ data }: { data: ReportePdfData }) {
-  const lineasEgresoPorCategoria = ORDEN_CATEGORIA.map((cat) => ({
+  const categoriasOrdenadas = [...new Set(data.lineasEgreso.map((l) => l.categoria))];
+  const lineasEgresoPorCategoria = categoriasOrdenadas.map((cat) => ({
     categoria: cat,
     lineas: data.lineasEgreso.filter((l) => l.categoria === cat),
     subtotal: data.lineasEgreso.filter((l) => l.categoria === cat).reduce((a, l) => a + l.monto, 0),
-  })).filter((g) => g.lineas.length > 0);
+  }));
 
   return (
     <Document>
@@ -269,7 +261,7 @@ function ReporteDocument({ data }: { data: ReportePdfData }) {
                     </View>
                   ))}
                   <View style={styles.trSubtotal}>
-                    <Text style={styles.tdLabelBold}>{ETIQUETA_CATEGORIA[g.categoria]}</Text>
+                    <Text style={styles.tdLabelBold}>{g.categoria.toUpperCase()}</Text>
                     <Text style={styles.tdValueBold}>{money(g.subtotal)}</Text>
                   </View>
                 </View>

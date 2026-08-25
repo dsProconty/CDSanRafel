@@ -24,7 +24,10 @@ const NAV_ADMIN: SidebarNavItem[] = [
     href: "/deudas/conceptos",
     label: "Catálogo",
     icon: <Tags className={ICON_CLASS} />,
-    children: [{ href: "/deudas/conceptos", label: "Deudas" }],
+    children: [
+      { href: "/deudas/conceptos", label: "Deudas" },
+      { href: "/egresos/categorias", label: "Egresos" },
+    ],
   },
   {
     href: "/reportes",

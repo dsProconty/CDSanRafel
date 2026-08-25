@@ -27,13 +27,6 @@ export const estadoMovimientoEnum = pgEnum("estado_movimiento", [
 
 export const estadoDeudaEnum = pgEnum("estado_deuda", ["pendiente", "pagada"]);
 
-export const categoriaGastoEnum = pgEnum("categoria_gasto", [
-  "mantenimiento",
-  "operativos",
-  "inversiones",
-  "otros",
-]);
-export type CategoriaGasto = (typeof categoriaGastoEnum.enumValues)[number];
 
 // Catálogo de casas del condominio (159 casas, Bloque A y B). Una casa tiene
 // a lo sumo un usuario (usuarioId), pero el mismo usuario puede estar
@@ -106,6 +99,60 @@ export const tiposExpensa = pgTable(
     activo: boolean("activo").notNull().default(true),
   },
   (table) => [uniqueIndex("tipos_expensa_nombre_idx").on(table.nombre)]
+);
+
+// Catálogo de presupuesto para clasificar egresos, en 3 niveles jerárquicos
+// (pedido del cliente ago 2026): Tipo → Subtipo → Clase. Ej. Tipo "Operativos"
+// → Subtipo "Servicios básicos" → Clase "Internet". Reemplaza el enum fijo
+// mantenimiento/operativos/inversiones/otros — el admin lo edita libremente
+// desde Catálogo → Egresos, y la lista real de ítems la define el cliente.
+export const presupuestoTipo = pgTable(
+  "presupuesto_tipo",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    activo: boolean("activo").notNull().default(true),
+  },
+  (table) => [uniqueIndex("presupuesto_tipo_nombre_idx").on(table.nombre)]
+);
+
+export const presupuestoSubtipo = pgTable(
+  "presupuesto_subtipo",
+  {
+    id: serial("id").primaryKey(),
+    tipoId: integer("tipo_id")
+      .notNull()
+      .references(() => presupuestoTipo.id),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    activo: boolean("activo").notNull().default(true),
+  },
+  (table) => [
+    uniqueIndex("presupuesto_subtipo_tipo_nombre_idx").on(table.tipoId, table.nombre),
+  ]
+);
+
+// `palabrasClave`: lista separada por comas (ej. "internet,cnt,netlife") para
+// autoclasificar egresos de servicios fijos recurrentes (teléfono, internet,
+// agua, luz) sin que el admin tenga que clasificarlos a mano cada vez — el
+// resto de los egresos quedan "pendiente de clasificar" hasta que el admin
+// los revise (ver reporteEgresoLinea.claseId más abajo).
+export const presupuestoClase = pgTable(
+  "presupuesto_clase",
+  {
+    id: serial("id").primaryKey(),
+    subtipoId: integer("subtipo_id")
+      .notNull()
+      .references(() => presupuestoSubtipo.id),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    palabrasClave: text("palabras_clave"),
+    activo: boolean("activo").notNull().default(true),
+  },
+  (table) => [
+    uniqueIndex("presupuesto_clase_subtipo_nombre_idx").on(table.subtipoId, table.nombre),
+  ]
 );
 
 // Catálogo de conceptos de deuda parametrizados por el admin de antemano
@@ -283,14 +330,18 @@ export const reporteIngresoLinea = pgTable("reporte_ingreso_linea", {
   orden: integer("orden").notNull().default(0),
 });
 
-// Línea de egreso dentro de un informe, agrupada por categoría fija
-// (mantenimiento/operativos/inversiones/otros) con subtipo libre.
+// Línea de egreso dentro de un informe. `subtipo` es texto libre (qué fue el
+// gasto, ej. "Compra de materiales de jardín") — no confundir con el nivel
+// "Subtipo" del catálogo de presupuesto. `claseId` null = "pendiente de
+// clasificar" (el admin cargó el gasto pero todavía no le asignó tipo/
+// subtipo/clase del presupuesto) — excepto que se autoclasifique al crearla
+// por matchear `presupuestoClase.palabrasClave` contra `subtipo`.
 export const reporteEgresoLinea = pgTable("reporte_egreso_linea", {
   id: serial("id").primaryKey(),
   reporteId: integer("reporte_id")
     .notNull()
     .references(() => reportesFinancieros.id),
-  categoria: categoriaGastoEnum("categoria").notNull(),
+  claseId: integer("clase_id").references(() => presupuestoClase.id),
   subtipo: text("subtipo").notNull(),
   monto: numeric("monto", { precision: 12, scale: 2 }).notNull().default("0"),
   orden: integer("orden").notNull().default(0),

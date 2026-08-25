@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
 import { NOMBRES_MES } from "@/lib/reporte-financiero";
+import { obtenerPresupuesto } from "../../egresos/categorias/actions";
 import { obtenerReporteDetalle } from "../actions";
 import { EditorReporte } from "./editor-reporte";
 
@@ -17,7 +18,10 @@ export default async function EditorReportePage({
   }
 
   const { id } = await params;
-  const detalle = await obtenerReporteDetalle(Number(id));
+  const [detalle, presupuesto] = await Promise.all([
+    obtenerReporteDetalle(Number(id)),
+    obtenerPresupuesto(),
+  ]);
   if (!detalle) {
     notFound();
   }
@@ -36,7 +40,7 @@ export default async function EditorReportePage({
         </div>
 
         <div className="mt-6">
-          <EditorReporte detalle={detalle} />
+          <EditorReporte detalle={detalle} presupuesto={presupuesto} />
         </div>
       </div>
     </AppShell>
