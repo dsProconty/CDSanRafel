@@ -1,0 +1,1743 @@
+{
+  "id": "ee384b50-3e11-4bb6-a5ab-5d7d8e781356",
+  "prevId": "9d9d0a73-2c62-4bf6-ac9a-3bd80459daa3",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.cargas_estado_cuenta": {
+      "name": "cargas_estado_cuenta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre_archivo": {
+          "name": "nombre_archivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_filas": {
+          "name": "total_filas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creditos": {
+          "name": "creditos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debitos": {
+          "name": "debitos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duplicados": {
+          "name": "duplicados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "matched_automatico": {
+          "name": "matched_automatico",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pendiente_revision": {
+          "name": "pendiente_revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sin_catalogar": {
+          "name": "sin_catalogar",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debitos_clasificados": {
+          "name": "debitos_clasificados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "debitos_pendientes": {
+          "name": "debitos_pendientes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cargas_estado_cuenta_usuario_id_usuarios_id_fk": {
+          "name": "cargas_estado_cuenta_usuario_id_usuarios_id_fk",
+          "tableFrom": "cargas_estado_cuenta",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.casas": {
+      "name": "casas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "numero": {
+          "name": "numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bloque": {
+          "name": "bloque",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "propietario": {
+          "name": "propietario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "casas_numero_idx": {
+          "name": "casas_numero_idx",
+          "columns": [
+            {
+              "expression": "numero",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "casas_usuario_id_usuarios_id_fk": {
+          "name": "casas_usuario_id_usuarios_id_fk",
+          "tableFrom": "casas",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.catalogo_referencias_bancarias": {
+      "name": "catalogo_referencias_bancarias",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "casa_id": {
+          "name": "casa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referencia": {
+          "name": "referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "banco": {
+          "name": "banco",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Banco Guayaquil'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "catalogo_referencias_casa_referencia_idx": {
+          "name": "catalogo_referencias_casa_referencia_idx",
+          "columns": [
+            {
+              "expression": "casa_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "referencia",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "catalogo_referencias_bancarias_casa_id_casas_id_fk": {
+          "name": "catalogo_referencias_bancarias_casa_id_casas_id_fk",
+          "tableFrom": "catalogo_referencias_bancarias",
+          "tableTo": "casas",
+          "columnsFrom": [
+            "casa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.conceptos_deuda": {
+      "name": "conceptos_deuda",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_expensa_id": {
+          "name": "tipo_expensa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto_default": {
+          "name": "monto_default",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion_default": {
+          "name": "descripcion_default",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "conceptos_deuda_nombre_idx": {
+          "name": "conceptos_deuda_nombre_idx",
+          "columns": [
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "conceptos_deuda_tipo_expensa_id_tipos_expensa_id_fk": {
+          "name": "conceptos_deuda_tipo_expensa_id_tipos_expensa_id_fk",
+          "tableFrom": "conceptos_deuda",
+          "tableTo": "tipos_expensa",
+          "columnsFrom": [
+            "tipo_expensa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deuda_masiva_lotes": {
+      "name": "deuda_masiva_lotes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "concepto_id": {
+          "name": "concepto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recurrente_id": {
+          "name": "recurrente_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_expensa_id": {
+          "name": "tipo_expensa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "casas_total": {
+          "name": "casas_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "casas_afectadas": {
+          "name": "casas_afectadas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anulado_en": {
+          "name": "anulado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deuda_masiva_lotes_usuario_id_usuarios_id_fk": {
+          "name": "deuda_masiva_lotes_usuario_id_usuarios_id_fk",
+          "tableFrom": "deuda_masiva_lotes",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deuda_masiva_lotes_concepto_id_conceptos_deuda_id_fk": {
+          "name": "deuda_masiva_lotes_concepto_id_conceptos_deuda_id_fk",
+          "tableFrom": "deuda_masiva_lotes",
+          "tableTo": "conceptos_deuda",
+          "columnsFrom": [
+            "concepto_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deuda_masiva_lotes_recurrente_id_deuda_recurrente_id_fk": {
+          "name": "deuda_masiva_lotes_recurrente_id_deuda_recurrente_id_fk",
+          "tableFrom": "deuda_masiva_lotes",
+          "tableTo": "deuda_recurrente",
+          "columnsFrom": [
+            "recurrente_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deuda_masiva_lotes_tipo_expensa_id_tipos_expensa_id_fk": {
+          "name": "deuda_masiva_lotes_tipo_expensa_id_tipos_expensa_id_fk",
+          "tableFrom": "deuda_masiva_lotes",
+          "tableTo": "tipos_expensa",
+          "columnsFrom": [
+            "tipo_expensa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deuda_recurrente": {
+      "name": "deuda_recurrente",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "concepto_id": {
+          "name": "concepto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_inicio": {
+          "name": "fecha_inicio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_periodos": {
+          "name": "total_periodos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "periodos_generados": {
+          "name": "periodos_generados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deuda_recurrente_usuario_id_usuarios_id_fk": {
+          "name": "deuda_recurrente_usuario_id_usuarios_id_fk",
+          "tableFrom": "deuda_recurrente",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deuda_recurrente_concepto_id_conceptos_deuda_id_fk": {
+          "name": "deuda_recurrente_concepto_id_conceptos_deuda_id_fk",
+          "tableFrom": "deuda_recurrente",
+          "tableTo": "conceptos_deuda",
+          "columnsFrom": [
+            "concepto_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deuda_recurrente_exclusion": {
+      "name": "deuda_recurrente_exclusion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "recurrente_id": {
+          "name": "recurrente_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "casa_id": {
+          "name": "casa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "deuda_recurrente_exclusion_idx": {
+          "name": "deuda_recurrente_exclusion_idx",
+          "columns": [
+            {
+              "expression": "recurrente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "casa_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deuda_recurrente_exclusion_recurrente_id_deuda_recurrente_id_fk": {
+          "name": "deuda_recurrente_exclusion_recurrente_id_deuda_recurrente_id_fk",
+          "tableFrom": "deuda_recurrente_exclusion",
+          "tableTo": "deuda_recurrente",
+          "columnsFrom": [
+            "recurrente_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deuda_recurrente_exclusion_casa_id_casas_id_fk": {
+          "name": "deuda_recurrente_exclusion_casa_id_casas_id_fk",
+          "tableFrom": "deuda_recurrente_exclusion",
+          "tableTo": "casas",
+          "columnsFrom": [
+            "casa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deudas": {
+      "name": "deudas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "casa_id": {
+          "name": "casa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_expensa_id": {
+          "name": "tipo_expensa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_deuda",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lote_id": {
+          "name": "lote_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deudas_casa_id_casas_id_fk": {
+          "name": "deudas_casa_id_casas_id_fk",
+          "tableFrom": "deudas",
+          "tableTo": "casas",
+          "columnsFrom": [
+            "casa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deudas_tipo_expensa_id_tipos_expensa_id_fk": {
+          "name": "deudas_tipo_expensa_id_tipos_expensa_id_fk",
+          "tableFrom": "deudas",
+          "tableTo": "tipos_expensa",
+          "columnsFrom": [
+            "tipo_expensa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deudas_lote_id_deuda_masiva_lotes_id_fk": {
+          "name": "deudas_lote_id_deuda_masiva_lotes_id_fk",
+          "tableFrom": "deudas",
+          "tableTo": "deuda_masiva_lotes",
+          "columnsFrom": [
+            "lote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.movimiento_candidatos_casa": {
+      "name": "movimiento_candidatos_casa",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "movimiento_id": {
+          "name": "movimiento_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "casa_id": {
+          "name": "casa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "movimiento_candidatos_movimiento_casa_idx": {
+          "name": "movimiento_candidatos_movimiento_casa_idx",
+          "columns": [
+            {
+              "expression": "movimiento_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "casa_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "movimiento_candidatos_casa_movimiento_id_movimientos_bancarios_id_fk": {
+          "name": "movimiento_candidatos_casa_movimiento_id_movimientos_bancarios_id_fk",
+          "tableFrom": "movimiento_candidatos_casa",
+          "tableTo": "movimientos_bancarios",
+          "columnsFrom": [
+            "movimiento_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "movimiento_candidatos_casa_casa_id_casas_id_fk": {
+          "name": "movimiento_candidatos_casa_casa_id_casas_id_fk",
+          "tableFrom": "movimiento_candidatos_casa",
+          "tableTo": "casas",
+          "columnsFrom": [
+            "casa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.movimientos_bancarios": {
+      "name": "movimientos_bancarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "documento": {
+          "name": "documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_transaccion": {
+          "name": "fecha_transaccion",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_contable": {
+          "name": "fecha_contable",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referencia_cruda": {
+          "name": "referencia_cruda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referencia_2": {
+          "name": "referencia_2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referencia_3": {
+          "name": "referencia_3",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "concepto": {
+          "name": "concepto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agencia": {
+          "name": "agencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "casa_id": {
+          "name": "casa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clase_id": {
+          "name": "clase_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporte_egreso_linea_id": {
+          "name": "reporte_egreso_linea_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_movimiento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sin_catalogar'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "movimientos_documento_idx": {
+          "name": "movimientos_documento_idx",
+          "columns": [
+            {
+              "expression": "documento",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "movimientos_bancarios_casa_id_casas_id_fk": {
+          "name": "movimientos_bancarios_casa_id_casas_id_fk",
+          "tableFrom": "movimientos_bancarios",
+          "tableTo": "casas",
+          "columnsFrom": [
+            "casa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "movimientos_bancarios_clase_id_presupuesto_clase_id_fk": {
+          "name": "movimientos_bancarios_clase_id_presupuesto_clase_id_fk",
+          "tableFrom": "movimientos_bancarios",
+          "tableTo": "presupuesto_clase",
+          "columnsFrom": [
+            "clase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "movimientos_bancarios_reporte_egreso_linea_id_reporte_egreso_linea_id_fk": {
+          "name": "movimientos_bancarios_reporte_egreso_linea_id_reporte_egreso_linea_id_fk",
+          "tableFrom": "movimientos_bancarios",
+          "tableTo": "reporte_egreso_linea",
+          "columnsFrom": [
+            "reporte_egreso_linea_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.presupuesto_clase": {
+      "name": "presupuesto_clase",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subtipo_id": {
+          "name": "subtipo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "palabras_clave": {
+          "name": "palabras_clave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "presupuesto_clase_subtipo_nombre_idx": {
+          "name": "presupuesto_clase_subtipo_nombre_idx",
+          "columns": [
+            {
+              "expression": "subtipo_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "presupuesto_clase_subtipo_id_presupuesto_subtipo_id_fk": {
+          "name": "presupuesto_clase_subtipo_id_presupuesto_subtipo_id_fk",
+          "tableFrom": "presupuesto_clase",
+          "tableTo": "presupuesto_subtipo",
+          "columnsFrom": [
+            "subtipo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.presupuesto_subtipo": {
+      "name": "presupuesto_subtipo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tipo_id": {
+          "name": "tipo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "presupuesto_subtipo_tipo_nombre_idx": {
+          "name": "presupuesto_subtipo_tipo_nombre_idx",
+          "columns": [
+            {
+              "expression": "tipo_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "presupuesto_subtipo_tipo_id_presupuesto_tipo_id_fk": {
+          "name": "presupuesto_subtipo_tipo_id_presupuesto_tipo_id_fk",
+          "tableFrom": "presupuesto_subtipo",
+          "tableTo": "presupuesto_tipo",
+          "columnsFrom": [
+            "tipo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.presupuesto_tipo": {
+      "name": "presupuesto_tipo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "presupuesto_tipo_nombre_idx": {
+          "name": "presupuesto_tipo_nombre_idx",
+          "columns": [
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reporte_egreso_linea": {
+      "name": "reporte_egreso_linea",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reporte_id": {
+          "name": "reporte_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clase_id": {
+          "name": "clase_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subtipo": {
+          "name": "subtipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "orden": {
+          "name": "orden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "reporte_egreso_linea_reporte_id_reportes_financieros_id_fk": {
+          "name": "reporte_egreso_linea_reporte_id_reportes_financieros_id_fk",
+          "tableFrom": "reporte_egreso_linea",
+          "tableTo": "reportes_financieros",
+          "columnsFrom": [
+            "reporte_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "reporte_egreso_linea_clase_id_presupuesto_clase_id_fk": {
+          "name": "reporte_egreso_linea_clase_id_presupuesto_clase_id_fk",
+          "tableFrom": "reporte_egreso_linea",
+          "tableTo": "presupuesto_clase",
+          "columnsFrom": [
+            "clase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reporte_ingreso_linea": {
+      "name": "reporte_ingreso_linea",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reporte_id": {
+          "name": "reporte_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_expensa_id": {
+          "name": "tipo_expensa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etiqueta": {
+          "name": "etiqueta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monto": {
+          "name": "monto",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "orden": {
+          "name": "orden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "reporte_ingreso_linea_reporte_id_reportes_financieros_id_fk": {
+          "name": "reporte_ingreso_linea_reporte_id_reportes_financieros_id_fk",
+          "tableFrom": "reporte_ingreso_linea",
+          "tableTo": "reportes_financieros",
+          "columnsFrom": [
+            "reporte_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "reporte_ingreso_linea_tipo_expensa_id_tipos_expensa_id_fk": {
+          "name": "reporte_ingreso_linea_tipo_expensa_id_tipos_expensa_id_fk",
+          "tableFrom": "reporte_ingreso_linea",
+          "tableTo": "tipos_expensa",
+          "columnsFrom": [
+            "tipo_expensa_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reportes_financieros": {
+      "name": "reportes_financieros",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "mes": {
+          "name": "mes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anio": {
+          "name": "anio",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saldo_inicial": {
+          "name": "saldo_inicial",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "casas_pagaron": {
+          "name": "casas_pagaron",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "casas_mora": {
+          "name": "casas_mora",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "casas_total": {
+          "name": "casas_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pdf_url": {
+          "name": "pdf_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generado_en": {
+          "name": "generado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reportes_financieros_periodo_idx": {
+          "name": "reportes_financieros_periodo_idx",
+          "columns": [
+            {
+              "expression": "mes",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "anio",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reportes_financieros_usuario_id_usuarios_id_fk": {
+          "name": "reportes_financieros_usuario_id_usuarios_id_fk",
+          "tableFrom": "reportes_financieros",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tipos_expensa": {
+      "name": "tipos_expensa",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "tipos_expensa_nombre_idx": {
+          "name": "tipos_expensa_nombre_idx",
+          "columns": [
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.usuarios": {
+      "name": "usuarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rol": {
+          "name": "rol",
+          "type": "rol_usuario",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'propietario'"
+        },
+        "cedula": {
+          "name": "cedula",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_secundario": {
+          "name": "telefono_secundario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_residente": {
+          "name": "tipo_residente",
+          "type": "tipo_residente",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'propietario'"
+        },
+        "comprobante_activo": {
+          "name": "comprobante_activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "ultimo_acceso": {
+          "name": "ultimo_acceso",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "usuarios_email_idx": {
+          "name": "usuarios_email_idx",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.estado_deuda": {
+      "name": "estado_deuda",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "pagada"
+      ]
+    },
+    "public.estado_movimiento": {
+      "name": "estado_movimiento",
+      "schema": "public",
+      "values": [
+        "matched",
+        "pendiente_revision",
+        "sin_catalogar",
+        "debito"
+      ]
+    },
+    "public.rol_usuario": {
+      "name": "rol_usuario",
+      "schema": "public",
+      "values": [
+        "admin",
+        "propietario"
+      ]
+    },
+    "public.tipo_residente": {
+      "name": "tipo_residente",
+      "schema": "public",
+      "values": [
+        "propietario",
+        "arrendatario",
+        "familiar"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

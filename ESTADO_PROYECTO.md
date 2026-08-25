@@ -103,10 +103,13 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   masiva salió). El saldo de una casa siempre se calcula como
   Σ`deudas.monto` − Σ`movimientos_bancarios.monto` (casaId no nulo), nunca se
   marca "pagada" a mano.
-- **`movimientos_bancarios`** — una fila por movimiento del Excel del banco.
-  `documento` es la clave de idempotencia (dedupe). `estado`:
-  matched/pendiente_revision/sin_catalogar. Los **débitos NO se procesan**
-  (solo créditos/ingresos) — ver limitación abajo.
+- **`movimientos_bancarios`** — una fila por movimiento del Excel del banco,
+  créditos Y débitos. `documento` es la clave de idempotencia (dedupe, para
+  ambos signos). `estado`: matched/pendiente_revision/sin_catalogar (créditos,
+  cruzan contra casas) o **`debito`** (egresos reales, desde ago 2026 — ver
+  "Ingesta automática de egresos" abajo). `claseId` (nullable) = clasificación
+  del presupuesto para un débito; `reporteEgresoLineaId` (nullable) marca que
+  ese débito ya se usó como línea de egreso de algún informe mensual.
 - **`cargas_estado_cuenta`** — historial de cada subida del Excel del banco.
 - **`movimiento_candidatos_casa`** — candidatos cuando una referencia
   matchea > 1 casa.
@@ -143,7 +146,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/login` | todos | Login por email + password (Auth.js credentials) |
 | `/` | todos | Dashboard: admin ve un panel de KPIs (saldo pendiente total, % casas al día, cobrado este mes con variación vs mes anterior, cola de revisión bancaria, casas sin acceso) + gráficos Recharts (cobranza mensual facturado/cobrado, donut de estado de casas) + top 8 morosos. Propietario ve una tarjeta por cada casa a su nombre (antes asumía una sola). |
 | `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con buscador + filtros (estado/pago) + columnas ordenables (flechitas) + columna Acciones fija (sticky) para no scrollear, modal de detalle con KPIs (avisa si el usuario también tiene acceso a otras casas), estado de cuenta con filtros |
-| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático + colas de revisión manual (acordeones), buscador + orden en el historial |
+| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático de créditos + colas de revisión manual (acordeones); los débitos (egresos reales) se guardan y se autoclasifican por palabra clave, quedan disponibles para el informe del mes que corresponda; buscador + orden en el historial |
 | `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
@@ -244,19 +247,70 @@ palabras clave) — **el cliente todavía tiene que compartir la lista real de
 ítems del presupuesto**, que se carga después vía la UI de `/egresos/
 categorias` sin tocar código.
 
-**Pendiente / bloqueado en esta sesión:** el cliente mencionó que él valida
-manualmente contra el estado de cuenta del banco cuáles son esos pagos fijos.
-Para autoclasificar directamente desde la fila del Excel bancario (en vez de
-depender del texto que el admin tipea a mano en "Gasto") haría falta ver un
-Excel real de ejemplo con columnas de referencia/beneficiario — no había
-ninguno disponible en esta sesión (`data/` no está versionado). Cuando el
-cliente lo comparta, falta evaluar si conviene extender esto al pipeline de
-`/cargar` (que hoy solo procesa créditos, ver limitación de débitos abajo).
+## Ingesta automática de egresos desde el Excel del banco (desde ago 2026)
+
+Se construyó lo que en la sesión anterior quedó como "pendiente/bloqueado":
+autoclasificar egresos directamente desde el Excel bancario (no solo desde
+el texto que el admin tipea a mano). El cliente pasó dos ejemplos reales de
+Excel de Banco Guayaquil (uno de una semana, otro de julio 2026 completo,
+pestaña "general") que permitieron identificar el patrón real:
+
+- La columna **"Concepto"** del banco casi nunca sirve para clasificar
+  (valores genéricos como "Pago a terceros", "Nota de débito"). Lo que sí
+  identifica el proveedor de un servicio fijo es **"Referencia 2"** (ej.
+  "Emaap quito", "Empresa electrica quito s a", "Movip", "Megadatos s a").
+  Para los pagos manuales tipo "Pago a terceros", la descripción real está
+  en **"Referencia 3"** (ej. "Seguridad junio", "Compra de pintura") — pero
+  para los 4 servicios fijos, Referencia 3 es solo un número de cliente, no
+  texto útil (por eso ahí se usa el Concepto, que ya es descriptivo:
+  "Cuota otecel", "Recaud.agua potable quito tr", etc.).
+- Cada pago fijo real viene con 1-2 líneas más ese mismo día (comisión del
+  banco por el débito automático + su IVA) que comparten Referencia 2 con el
+  pago principal — por eso autoclasificar contra `concepto + referencia2`
+  (no solo concepto) también atrapa esas líneas de comisión/IVA sin que el
+  admin tenga que tipear nada (pedido explícito del cliente: "hay unos
+  impuestos también que se cargan de los pagos recurrentes").
+
+Implementado en `src/lib/procesar-movimientos.ts` +
+`src/lib/clasificar-egreso.ts` (autoclasificación y derivación de
+descripción compartidas con el editor manual de informes):
+
+- `/cargar` ahora guarda TAMBIÉN los débitos (antes se descartaban) en
+  `movimientos_bancarios` con `estado = "debito"`, autoclasificados por
+  palabra clave contra `concepto + referencia2`; `claseId` null = pendiente.
+- Al crear un borrador de informe (`crearBorradorReporte`), además de
+  sugerir ingresos (como ya hacía), se importan solos los débitos de
+  `movimientos_bancarios` cuya `fechaTransaccion` cae en ese mes y que
+  todavía no se usaron en otro informe (`reporteEgresoLineaId` null) — se
+  generan como `reporteEgresoLinea` ya con su `claseId` (o pendiente si no
+  matcheó ninguna palabra clave). **Límite conocido**: es una sugerencia al
+  crear el borrador, no un sync continuo — igual que ya pasa con los
+  ingresos sugeridos. Si el Excel del banco se sube DESPUÉS de crear el
+  borrador del mes, esos débitos quedan sueltos en `movimientos_bancarios`
+  (no se pierden, pero no aparecen solos en el informe) y hay que
+  agregarlos a mano como antes.
+- Si se borra una línea de egreso o un borrador completo, el/los
+  movimiento(s) bancario(s) que la generaron se "desconsumen"
+  (`reporteEgresoLineaId = null`) para no violar la FK y para que vuelvan a
+  estar disponibles si se recrea el informe de ese mes.
+- Migración `0010`: agrega `debito` al enum `estado_movimiento`, y las
+  columnas `referencia_2`/`referencia_3`/`clase_id`/`reporte_egreso_linea_id`
+  a `movimientos_bancarios` (más 2 columnas de conteo en
+  `cargas_estado_cuenta`). **Gotcha nuevo para el fallback del editor de
+  Neon**: `ALTER TYPE ... ADD VALUE` de Postgres no se puede correr dentro
+  de un bloque `DO $$ ... $$` (a diferencia del resto de sentencias de una
+  migración, que sí se pueden envolver ahí) — hay que correrlo solo, en su
+  propio Run, antes del bloque `DO` con el resto de la migración.
+- **Ojo con las palabras clave ya sembradas en el catálogo** (migración
+  `0008`, editables sin tocar código desde `/egresos/categorias`): con los
+  Excel reales se confirmó que hacen falta agregar `otecel` y `movip` a
+  Teléfono (la "Cuota otecel" es el cargo, pero su comisión/IVA vienen con
+  Referencia 2 = "Movip", no "otecel") y `megadatos` a Internet, `emaap` a
+  Agua potable, `eee quito`/`empresa electrica` a Energía eléctrica — el
+  cliente las agrega él mismo desde la UI, no requiere otra migración.
 
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 
-- **El Excel del banco solo procesa créditos.** Los débitos (egresos reales)
-  se descartan — por eso el informe económico pide los egresos a mano.
 - **No hay cron para la carga del Excel del banco** (seguía siendo manual,
   el cron que existe es para deudas recurrentes, no para esto). Bloqueante:
   Banco Guayaquil probablemente no tiene API — habría que definir de dónde

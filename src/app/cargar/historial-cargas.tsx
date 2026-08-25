@@ -20,6 +20,8 @@ export type FilaHistorial = {
   matchedAutomatico: number;
   pendienteRevision: number;
   sinCatalogar: number;
+  debitosClasificados: number;
+  debitosPendientes: number;
 };
 
 type SortKey = "fecha" | "usuario" | "archivo" | "creditos" | "abonos" | "pendientes" | "sinCatalogar";
@@ -162,7 +164,7 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
               <dl className="mt-5 grid grid-cols-2 gap-3">
                 <Dato label="Total filas del archivo" value={detalle.totalFilas} />
                 <Dato label="Créditos" value={detalle.creditos} />
-                <Dato label="Débitos (no procesados)" value={detalle.debitos} />
+                <Dato label="Débitos" value={detalle.debitos} />
                 <Dato label="Duplicados (ya cargados)" value={detalle.duplicados} />
                 <Dato
                   label="Abonos automáticos"
@@ -178,6 +180,16 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
                   label="Sin catalogar"
                   value={detalle.sinCatalogar}
                   colorClass="text-destructive"
+                />
+                <Dato
+                  label="Egresos autoclasificados"
+                  value={detalle.debitosClasificados}
+                  colorClass="text-success"
+                />
+                <Dato
+                  label="Egresos pendientes de clasificar"
+                  value={detalle.debitosPendientes}
+                  colorClass="text-warning"
                 />
               </dl>
             </div>

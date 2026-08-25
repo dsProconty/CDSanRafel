@@ -33,8 +33,8 @@ export function UploadForm() {
       {resultado?.ok && (
         <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="Créditos en el archivo" value={resultado.resumen.creditos} />
+          <Stat label="Débitos en el archivo" value={resultado.resumen.debitos} />
           <Stat label="Duplicados (ya cargados)" value={resultado.resumen.duplicados} />
-          <Stat label="Débitos (no procesados)" value={resultado.resumen.debitos} />
           <Stat
             label="Abonos automáticos"
             value={resultado.resumen.matchedAutomatico}
@@ -48,6 +48,16 @@ export function UploadForm() {
           <Stat
             label="Sin catalogar"
             value={resultado.resumen.sinCatalogar}
+            destacado
+          />
+          <Stat
+            label="Egresos autoclasificados"
+            value={resultado.resumen.debitosClasificados}
+            destacado
+          />
+          <Stat
+            label="Egresos pendientes de clasificar"
+            value={resultado.resumen.debitosPendientes}
             destacado
           />
         </div>

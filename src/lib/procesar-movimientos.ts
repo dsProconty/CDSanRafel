@@ -6,6 +6,7 @@ import {
   movimientoCandidatosCasa,
   movimientosBancarios,
 } from "@/db/schema";
+import { intentarAutoclasificarEgreso } from "./clasificar-egreso";
 import type { FilaBanco } from "./parse-bank-excel";
 
 export type ResumenCarga = {
@@ -16,19 +17,24 @@ export type ResumenCarga = {
   matchedAutomatico: number;
   pendienteRevision: number;
   sinCatalogar: number;
+  debitosClasificados: number;
+  debitosPendientes: number;
 };
 
-// Solo se procesan créditos (Signo "+"): son los pagos de propietarios que
-// hay que cruzar contra el catálogo de casas. Los débitos son egresos del
-// condominio (comisiones, pagos a terceros) y no participan del matching.
+// Créditos (signo "+") son los pagos de propietarios: se cruzan contra el
+// catálogo de casas. Débitos (signo "-") son egresos reales del condominio:
+// se guardan también (antes se descartaban) y se autoclasifican por palabra
+// clave contra concepto + referencia2 — el resto queda "pendiente de
+// clasificar" hasta que un admin los revise desde el editor del informe
+// económico del mes correspondiente (ver `crearBorradorReporte`).
 export async function procesarMovimientosBancarios(
   filas: FilaBanco[]
 ): Promise<ResumenCarga> {
-  const creditos = filas.filter((f) => f.signo === "+");
-  const debitos = filas.length - creditos.length;
+  const creditosFilas = filas.filter((f) => f.signo === "+");
+  const debitosFilas = filas.filter((f) => f.signo === "-");
 
   const porDocumento = new Map<string, FilaBanco>();
-  for (const fila of creditos) {
+  for (const fila of filas) {
     if (!porDocumento.has(fila.documento)) {
       porDocumento.set(fila.documento, fila);
     }
@@ -47,12 +53,12 @@ export async function procesarMovimientosBancarios(
     .filter((doc) => !yaCargados.has(doc))
     .map((doc) => porDocumento.get(doc)!);
 
-  const duplicados = creditos.length - nuevas.length;
+  const duplicados = filas.length - nuevas.length;
 
   const resumenBase = {
     totalFilas: filas.length,
-    creditos: creditos.length,
-    debitos,
+    creditos: creditosFilas.length,
+    debitos: debitosFilas.length,
     duplicados,
   };
 
@@ -62,10 +68,16 @@ export async function procesarMovimientosBancarios(
       matchedAutomatico: 0,
       pendienteRevision: 0,
       sinCatalogar: 0,
+      debitosClasificados: 0,
+      debitosPendientes: 0,
     };
   }
 
-  const referenciasUnicas = [...new Set(nuevas.map((f) => f.referencia))];
+  const nuevosCreditos = nuevas.filter((f) => f.signo === "+");
+  const nuevosDebitos = nuevas.filter((f) => f.signo === "-");
+
+  // --- Créditos: matching contra el catálogo de casas (igual que antes) ---
+  const referenciasUnicas = [...new Set(nuevosCreditos.map((f) => f.referencia))];
   const catalogo = referenciasUnicas.length
     ? await db
         .select({
@@ -87,7 +99,7 @@ export async function procesarMovimientosBancarios(
   let pendienteRevision = 0;
   let sinCatalogar = 0;
 
-  const filasParaInsertar = nuevas.map((fila) => {
+  const creditosParaInsertar = nuevosCreditos.map((fila) => {
     const candidatos = candidatosPorReferencia.get(fila.referencia) ?? [];
     let estado: "matched" | "pendiente_revision" | "sin_catalogar";
     let casaId: number | null = null;
@@ -107,27 +119,31 @@ export async function procesarMovimientosBancarios(
     return { fila, estado, casaId, candidatos };
   });
 
-  const insertados = await db
-    .insert(movimientosBancarios)
-    .values(
-      filasParaInsertar.map(({ fila, estado, casaId }) => ({
-        documento: fila.documento,
-        fechaTransaccion: fila.fechaTransaccion,
-        fechaContable: fila.fechaContable || null,
-        monto: fila.monto.toFixed(2),
-        referenciaCruda: fila.referencia,
-        concepto: fila.concepto || null,
-        agencia: fila.agencia || null,
-        casaId,
-        estado,
-      }))
-    )
-    .returning({ id: movimientosBancarios.id });
+  const creditosInsertados = creditosParaInsertar.length
+    ? await db
+        .insert(movimientosBancarios)
+        .values(
+          creditosParaInsertar.map(({ fila, estado, casaId }) => ({
+            documento: fila.documento,
+            fechaTransaccion: fila.fechaTransaccion,
+            fechaContable: fila.fechaContable || null,
+            monto: fila.monto.toFixed(2),
+            referenciaCruda: fila.referencia,
+            referencia2: fila.referencia2 || null,
+            referencia3: fila.referencia3 || null,
+            concepto: fila.concepto || null,
+            agencia: fila.agencia || null,
+            casaId,
+            estado,
+          }))
+        )
+        .returning({ id: movimientosBancarios.id })
+    : [];
 
-  const candidatosAInsertar = filasParaInsertar.flatMap((item, i) =>
+  const candidatosAInsertar = creditosParaInsertar.flatMap((item, i) =>
     item.estado === "pendiente_revision"
       ? item.candidatos.map((casaId) => ({
-          movimientoId: insertados[i].id,
+          movimientoId: creditosInsertados[i].id,
           casaId,
         }))
       : []
@@ -137,10 +153,42 @@ export async function procesarMovimientosBancarios(
     await db.insert(movimientoCandidatosCasa).values(candidatosAInsertar);
   }
 
+  // --- Débitos: autoclasificación por palabra clave (concepto + referencia2) ---
+  let debitosClasificados = 0;
+  let debitosPendientes = 0;
+  const debitosParaInsertar: { fila: FilaBanco; claseId: number | null }[] = [];
+  for (const fila of nuevosDebitos) {
+    const claseId = await intentarAutoclasificarEgreso(`${fila.concepto} ${fila.referencia2}`);
+    if (claseId !== null) debitosClasificados++;
+    else debitosPendientes++;
+    debitosParaInsertar.push({ fila, claseId });
+  }
+
+  if (debitosParaInsertar.length > 0) {
+    await db.insert(movimientosBancarios).values(
+      debitosParaInsertar.map(({ fila, claseId }) => ({
+        documento: fila.documento,
+        fechaTransaccion: fila.fechaTransaccion,
+        fechaContable: fila.fechaContable || null,
+        monto: fila.monto.toFixed(2),
+        referenciaCruda: fila.referencia,
+        referencia2: fila.referencia2 || null,
+        referencia3: fila.referencia3 || null,
+        concepto: fila.concepto || null,
+        agencia: fila.agencia || null,
+        casaId: null,
+        estado: "debito" as const,
+        claseId,
+      }))
+    );
+  }
+
   return {
     ...resumenBase,
     matchedAutomatico,
     pendienteRevision,
     sinCatalogar,
+    debitosClasificados,
+    debitosPendientes,
   };
 }

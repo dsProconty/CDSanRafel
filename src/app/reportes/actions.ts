@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { put } from "@vercel/blob";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
 import {
+  movimientosBancarios,
   presupuestoClase,
   presupuestoSubtipo,
   presupuestoTipo,
@@ -15,9 +16,11 @@ import {
   reportesFinancieros,
   usuarios,
 } from "@/db/schema";
+import { descripcionEgresoBancario, intentarAutoclasificarEgreso } from "@/lib/clasificar-egreso";
 import {
   calcularEstadoCasas,
   NOMBRES_MES,
+  rangoDelMes,
   sugerirLineasIngreso,
 } from "@/lib/reporte-financiero";
 import { renderReportePdf } from "@/lib/reporte-pdf";
@@ -26,27 +29,6 @@ async function requireAdmin() {
   const session = await auth();
   if (session?.user.rol !== "admin") return null;
   return session;
-}
-
-// Autoclasificación de servicios fijos recurrentes (teléfono, internet, agua,
-// luz): si el texto del gasto matchea alguna palabra clave de una clase del
-// presupuesto, se asigna sola sin que el admin tenga que clasificarla a mano
-// (pedido del cliente, ago 2026). El resto queda "pendiente de clasificar"
-// (claseId null) hasta que el admin la clasifique desde el editor.
-async function intentarAutoclasificar(subtipo: string): Promise<number | null> {
-  const clases = await db
-    .select({ id: presupuestoClase.id, palabrasClave: presupuestoClase.palabrasClave })
-    .from(presupuestoClase)
-    .where(and(eq(presupuestoClase.activo, true), isNotNull(presupuestoClase.palabrasClave)));
-
-  const texto = subtipo.toLowerCase();
-  for (const c of clases) {
-    const palabras = (c.palabrasClave ?? "").split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
-    if (palabras.some((p) => texto.includes(p))) {
-      return c.id;
-    }
-  }
-  return null;
 }
 
 function totales(
@@ -192,6 +174,49 @@ export async function crearBorradorReporte(
         monto: s.monto.toFixed(2),
         orden: i,
       }))
+    );
+  }
+
+  // Egresos: se importan solos los débitos del Excel del banco cargados para
+  // este mes (ver /cargar) que todavía no se hayan usado en otro informe.
+  // Si el Excel se sube DESPUÉS de crear el borrador, esos débitos quedan
+  // sueltos y hay que cargarlos a mano — mismo límite que ya tienen los
+  // ingresos sugeridos (son una sugerencia al crear, no un sync continuo).
+  const { desde, hasta } = rangoDelMes(mes, anio);
+  const debitosDelMes = await db
+    .select()
+    .from(movimientosBancarios)
+    .where(
+      and(
+        eq(movimientosBancarios.estado, "debito"),
+        isNull(movimientosBancarios.reporteEgresoLineaId),
+        gte(movimientosBancarios.fechaTransaccion, desde),
+        lte(movimientosBancarios.fechaTransaccion, hasta)
+      )
+    )
+    .orderBy(asc(movimientosBancarios.fechaTransaccion));
+
+  if (debitosDelMes.length > 0) {
+    const lineasInsertadas = await db
+      .insert(reporteEgresoLinea)
+      .values(
+        debitosDelMes.map((m, i) => ({
+          reporteId: reporte.id,
+          claseId: m.claseId,
+          subtipo: descripcionEgresoBancario(m),
+          monto: m.monto,
+          orden: i,
+        }))
+      )
+      .returning({ id: reporteEgresoLinea.id });
+
+    await Promise.all(
+      debitosDelMes.map((m, i) =>
+        db
+          .update(movimientosBancarios)
+          .set({ reporteEgresoLineaId: lineasInsertadas[i].id })
+          .where(eq(movimientosBancarios.id, m.id))
+      )
     );
   }
 
@@ -348,7 +373,7 @@ export async function agregarLineaEgreso(
     .where(eq(reporteEgresoLinea.reporteId, reporteId))
     .orderBy(desc(reporteEgresoLinea.orden))
     .limit(1);
-  const claseFinal = claseId ?? (await intentarAutoclasificar(subtipo));
+  const claseFinal = claseId ?? (await intentarAutoclasificarEgreso(subtipo));
   const [linea] = await db
     .insert(reporteEgresoLinea)
     .values({
@@ -383,6 +408,13 @@ export async function actualizarLineaEgreso(
 export async function eliminarLineaEgreso(id: number, reporteId: number): Promise<Resultado> {
   const session = await requireAdmin();
   if (!session) return { ok: false, error: "No autorizado." };
+  // Si esta línea vino de un débito importado del banco, se "desconsume" el
+  // movimiento (queda disponible de nuevo) antes de borrar la línea, para no
+  // violar la FK movimientos_bancarios.reporte_egreso_linea_id.
+  await db
+    .update(movimientosBancarios)
+    .set({ reporteEgresoLineaId: null })
+    .where(eq(movimientosBancarios.reporteEgresoLineaId, id));
   await db.delete(reporteEgresoLinea).where(eq(reporteEgresoLinea.id, id));
   revalidatePath(`/reportes/${reporteId}`);
   return { ok: true };
@@ -399,6 +431,25 @@ export async function eliminarBorrador(id: number): Promise<Resultado> {
   if (reporte.pdfUrl) {
     return { ok: false, error: "Ya se generó el PDF; no se puede borrar un informe publicado." };
   }
+
+  const lineasEgreso = await db
+    .select({ id: reporteEgresoLinea.id })
+    .from(reporteEgresoLinea)
+    .where(eq(reporteEgresoLinea.reporteId, id));
+  if (lineasEgreso.length > 0) {
+    // Desconsume los débitos bancarios que hubieran generado estas líneas,
+    // para que vuelvan a estar disponibles al recrear el informe del mes.
+    await db
+      .update(movimientosBancarios)
+      .set({ reporteEgresoLineaId: null })
+      .where(
+        inArray(
+          movimientosBancarios.reporteEgresoLineaId,
+          lineasEgreso.map((l) => l.id)
+        )
+      );
+  }
+
   await db.delete(reporteIngresoLinea).where(eq(reporteIngresoLinea.reporteId, id));
   await db.delete(reporteEgresoLinea).where(eq(reporteEgresoLinea.reporteId, id));
   await db.delete(reportesFinancieros).where(eq(reportesFinancieros.id, id));

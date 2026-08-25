@@ -38,6 +38,8 @@ export default async function CargarPage() {
       matchedAutomatico: cargasEstadoCuenta.matchedAutomatico,
       pendienteRevision: cargasEstadoCuenta.pendienteRevision,
       sinCatalogar: cargasEstadoCuenta.sinCatalogar,
+      debitosClasificados: cargasEstadoCuenta.debitosClasificados,
+      debitosPendientes: cargasEstadoCuenta.debitosPendientes,
     })
     .from(cargasEstadoCuenta)
     .leftJoin(usuarios, eq(usuarios.id, cargasEstadoCuenta.usuarioId))
@@ -115,8 +117,11 @@ export default async function CargarPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Sube el Excel de movimientos de Banco Guayaquil. Los documentos ya
-            cargados se descartan automáticamente y las referencias se cruzan
-            contra el catálogo de casas.
+            cargados se descartan automáticamente. Los créditos (pagos de
+            propietarios) se cruzan contra el catálogo de casas; los débitos
+            (egresos reales) se guardan y se autoclasifican por palabra clave
+            — quedan disponibles para el informe económico del mes que
+            corresponda según su fecha.
           </p>
         </div>
 

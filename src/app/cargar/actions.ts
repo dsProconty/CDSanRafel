@@ -44,6 +44,8 @@ export async function cargarEstadoCuenta(
       matchedAutomatico: resumen.matchedAutomatico,
       pendienteRevision: resumen.pendienteRevision,
       sinCatalogar: resumen.sinCatalogar,
+      debitosClasificados: resumen.debitosClasificados,
+      debitosPendientes: resumen.debitosPendientes,
     });
 
     revalidatePath("/cargar");

@@ -23,6 +23,7 @@ export const estadoMovimientoEnum = pgEnum("estado_movimiento", [
   "matched",
   "pendiente_revision",
   "sin_catalogar",
+  "debito",
 ]);
 
 export const estadoDeudaEnum = pgEnum("estado_deuda", ["pendiente", "pagada"]);
@@ -254,7 +255,17 @@ export const deudas = pgTable("deudas", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Movimientos del Excel del banco (Banco Guayaquil). `documento` es la llave de idempotencia.
+// Movimientos del Excel del banco (Banco Guayaquil). `documento` es la llave
+// de idempotencia, para créditos Y débitos por igual. Créditos (signo "+")
+// se cruzan contra el catálogo de casas (`estado` matched/pendiente_revision/
+// sin_catalogar). Débitos (signo "-", `estado` = "debito") son egresos reales
+// del condominio: se autoclasifican por palabra clave contra `concepto` +
+// `referencia2` (ahí vive el nombre del proveedor — ej. "Emaap quito",
+// "Empresa electrica quito s a" — para los servicios fijos recurrentes;
+// `claseId` null = pendiente de clasificar). `reporteEgresoLineaId` se llena
+// cuando ese débito ya se consumió como línea de egreso de algún informe
+// mensual (ver `crearBorradorReporte`), para no duplicarlo si se sube de
+// nuevo un excel que se solape en fechas.
 export const movimientosBancarios = pgTable(
   "movimientos_bancarios",
   {
@@ -264,9 +275,15 @@ export const movimientosBancarios = pgTable(
     fechaContable: date("fecha_contable"),
     monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
     referenciaCruda: text("referencia_cruda").notNull(),
+    referencia2: text("referencia_2"),
+    referencia3: text("referencia_3"),
     concepto: text("concepto"),
     agencia: text("agencia"),
     casaId: integer("casa_id").references(() => casas.id),
+    claseId: integer("clase_id").references(() => presupuestoClase.id),
+    reporteEgresoLineaId: integer("reporte_egreso_linea_id").references(
+      () => reporteEgresoLinea.id
+    ),
     estado: estadoMovimientoEnum("estado").notNull().default("sin_catalogar"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -286,6 +303,8 @@ export const cargasEstadoCuenta = pgTable("cargas_estado_cuenta", {
   matchedAutomatico: integer("matched_automatico").notNull(),
   pendienteRevision: integer("pendiente_revision").notNull(),
   sinCatalogar: integer("sin_catalogar").notNull(),
+  debitosClasificados: integer("debitos_clasificados").notNull().default(0),
+  debitosPendientes: integer("debitos_pendientes").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

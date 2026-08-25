@@ -71,6 +71,13 @@
       "when": 1787694683399,
       "tag": "0009_fuzzy_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787696421544,
+      "tag": "0010_tired_sunfire",
+      "breakpoints": true
     }
   ]
 }
