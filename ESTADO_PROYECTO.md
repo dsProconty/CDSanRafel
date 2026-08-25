@@ -24,8 +24,10 @@ Terán Panchi (administrador).
   para que `drizzle.config.ts` no tire error al leer el config.
 - `npm run db:migrate` — aplica migraciones pendientes contra `DATABASE_URL`.
 - Seeds: `npm run db:seed:casas` (importa `data/CASAS.xlsx`, no versionado),
-  `npm run db:seed:admin`, `npm run db:seed:tipos` (Ordinaria/Extraordinaria/
-  Otros).
+  `npm run db:seed:usuarios` (importa `data/AGENDA_RESIDENTES.xlsx`, no
+  versionado — carga masiva de propietarios reales: correo, cédula,
+  teléfono, tipo de residente; password inicial = cédula), `npm run
+  db:seed:admin`, `npm run db:seed:tipos` (Ordinaria/Extraordinaria/Otros).
 - `npx next build` con `DATABASE_URL` y `AUTH_SECRET` dummy sirve para
   correr el build + typecheck sin necesitar una base real (las páginas son
   todas dinámicas, no hacen queries en build time).
@@ -51,8 +53,11 @@ esa base desde este entorno de trabajo, el flujo que terminó funcionando fue:
      `ALTER TABLE ... ADD CONSTRAINT` van envueltos en un `BEGIN ... EXCEPTION
      WHEN duplicate_object THEN NULL; END;` interno para que sea idempotente.
 
-Todas las migraciones (`0000` a `0006`) ya están confirmadas aplicadas en
-`neon-blue-prism` a esta fecha.
+Todas las migraciones (`0000` a `0007`) ya están confirmadas aplicadas en
+`neon-blue-prism` a esta fecha. Además, en esta sesión se cargaron datos
+reales de producción: 156 casas, 153 usuarios (correo/cédula/teléfono desde
+`data/AGENDA_RESIDENTES.xlsx`, no versionado) — ver "Un usuario puede tener
+varias casas" abajo para el detalle del último ajuste sobre esos datos.
 
 ## Variables de entorno / config en Vercel (confirmado)
 
@@ -66,13 +71,17 @@ Todas las migraciones (`0000` a `0006`) ya están confirmadas aplicadas en
 ## Esquema de datos actual (`src/db/schema.ts`)
 
 - **`casas`** — id, numero (ej "36A"), bloque (A/B), propietario (texto
-  libre, manual). Único por `numero`.
-- **`usuarios`** — 1 usuario : 1 casa (`casaId` nullable → null = admin no
-  atado a una casa). `email` único, `passwordHash` (bcrypt), `rol`
-  (admin/propietario). Trae también los campos de "Agenda" fusionados:
-  `cedula`, `telefono`, `telefonoSecundario`, `tipoResidente`
+  libre, manual), `usuarioId` (nullable, FK a `usuarios.id` — null = sin
+  acceso creado). Único por `numero`. La FK vive acá (no en `usuarios`)
+  justamente para permitir que un mismo usuario tenga varias casas sin
+  duplicar login.
+- **`usuarios`** — login (email único, `passwordHash` bcrypt, `rol`
+  admin/propietario) + los campos de "Agenda" fusionados: `cedula`,
+  `telefono`, `telefonoSecundario`, `tipoResidente`
   (propietario/arrendatario/familiar), `comprobanteActivo`, `ultimoAcceso`.
-  Único por `casaId` y por `email`.
+  **Ya no tiene `casaId`** — la relación se invirtió (ver `casas.usuarioId`
+  abajo): una casa tiene un solo usuario, pero el mismo usuario puede estar
+  asignado a varias casas (dueños con más de una unidad). Migración `0007`.
 - **`catalogo_referencias_bancarias`** — `casaId` + `referencia` + `banco`
   (default "Banco Guayaquil"). Relación 1 casa : N referencias. Se completa
   también dinámicamente cuando el admin cataloga una referencia nueva desde
@@ -108,19 +117,42 @@ Todas las migraciones (`0000` a `0006`) ya están confirmadas aplicadas en
   (mantenimiento/operativos/inversiones/otros). Genera PDF con
   `@react-pdf/renderer`, se sube a Vercel Blob, `pdfUrl` queda guardado.
 
+## Un usuario puede tener varias casas (desde ago 2026)
+
+El pedido original decía "un usuario = una casa". El cliente (Christian)
+pidió por WhatsApp poder soportar dueños con más de una unidad, con la
+regla: **una casa nunca tiene más de un usuario, pero un usuario sí puede
+tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
+`usuarios.casaId` (ver arriba). Consecuencias en el código
+(`src/app/casas/[numero]/actions.ts`):
+
+- `guardarUsuario`: si el correo ya existe, reusa esa cuenta y solo
+  vincula la casa nueva (antes rechazaba con "correo ya está en uso").
+- `eliminarUsuario`: desvincula la casa (`usuarioId = null`), no borra el
+  usuario — si tras desvincular queda sin ninguna casa, recién ahí se borra
+  automáticamente (`limpiarUsuarioSiHuerfano`).
+- El dashboard del propietario (`/`) muestra una tarjeta por cada casa a su
+  nombre.
+- El modal de detalle de casa avisa "este usuario también tiene acceso a:
+  X, Y" cuando corresponde.
+
 ## Módulos construidos (por pantalla)
 
 | Ruta | Quién | Qué hace |
 |---|---|---|
 | `/login` | todos | Login por email + password (Auth.js credentials) |
-| `/` | todos | Dashboard: admin ve KPIs generales, propietario ve su saldo |
-| `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con estado (al día/mora), modal de detalle con KPIs, estado de cuenta con filtros |
-| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático + colas de revisión manual (acordeones) |
-| `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular. |
-| `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas" |
-| `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado) |
+| `/` | todos | Dashboard: admin ve un panel de KPIs (saldo pendiente total, % casas al día, cobrado este mes con variación vs mes anterior, cola de revisión bancaria, casas sin acceso) + gráficos Recharts (cobranza mensual facturado/cobrado, donut de estado de casas) + top 8 morosos. Propietario ve una tarjeta por cada casa a su nombre (antes asumía una sola). |
+| `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con buscador + filtros (estado/pago) + columnas ordenables (flechitas) + columna Acciones fija (sticky) para no scrollear, modal de detalle con KPIs (avisa si el usuario también tiene acceso a otras casas), estado de cuenta con filtros |
+| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático + colas de revisión manual (acordeones), buscador + orden en el historial |
+| `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
+| `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
+| `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
 | `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos manuales, botón "Generar y publicar PDF" |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
+
+Todas las tablas del sistema comparten los mismos componentes chicos
+reutilizables: `SearchInput`, `Select` y `SortableTh` (flechitas de orden)
+en `src/components/ui/`.
 
 `/deudas/recurrentes` sigue existiendo como archivo pero solo hace
 `redirect("/deudas/masiva")` — se unificó todo en una sola pantalla con
@@ -177,12 +209,17 @@ selector de modo.
 
 ## Convenciones de git en este repo (para la sesión nueva)
 
-- Rama de trabajo actual: `claude/modulo-duda-masiva-hpcn7b` (a pesar del
-  nombre, terminó siendo la rama de TODO el trabajo de deudas/reportes de
-  esta sesión larga).
-- El usuario pide explícitamente "sube a main" cada vez que quiere
-  mergear — nunca asumir que corresponde sin que lo pida. El merge que
-  funcionó siempre fue fast-forward simple:
+- Rama de trabajo actual: `claude/migracion-usuario-correo-casas-h1x6hx`
+  (a pesar del nombre, terminó siendo la rama de todo el trabajo de esta
+  sesión: migración real de usuarios/casas, buscadores/filtros/orden en
+  las tablas, dashboard de KPIs, y el cambio a "un usuario puede tener
+  varias casas").
+- **Cambio de convención (ago 2026): el usuario pidió explícitamente
+  "subilo a main siempre, así es como yo pruebo".** A diferencia de antes
+  (donde había que esperar el pedido "sube a main" en cada ocasión), ahora
+  el default es mergear a `main` después de cada cambio, sin que lo pida
+  de nuevo — salvo que el usuario diga lo contrario. El merge sigue siendo
+  fast-forward simple:
   ```
   git fetch origin main <rama>
   git checkout -B main origin/main
@@ -190,5 +227,10 @@ selector de modo.
   git push origin main
   git checkout <rama>   # volver a la rama de trabajo
   ```
-- Nunca se creó un Pull Request — todo fue push directo a `main` con
-  autorización explícita del usuario en cada ocasión.
+- Nunca se creó un Pull Request — todo fue push directo a `main`.
+- **Ojo con el orden schema-vs-deploy**: como se sube a `main` apenas se
+  termina un cambio, si ese cambio incluye una migración de schema (como
+  la `0007` de esta sesión), el deploy en Vercel queda ROTO hasta que se
+  corre el SQL de la migración a mano en el editor de Neon (ver gotcha de
+  "dos bases distintas" arriba) — avisar esto explícitamente cada vez que
+  se pushee un cambio de schema, y mandar el SQL a correr de inmediato.
