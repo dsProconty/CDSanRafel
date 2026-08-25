@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Pencil, Search } from "lucide-react";
+import { Eye, FileText, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
+import { Select } from "@/components/ui/select";
 import { CasaModal } from "./casa-modal";
 import { EstadoCuentaModal } from "./estado-cuenta-modal";
 
@@ -44,9 +46,41 @@ function coincide(c: FilaCasa, termino: string) {
     c.numero.toLowerCase().includes(t) ||
     (c.propietario ?? "").toLowerCase().includes(t) ||
     (c.email ?? "").toLowerCase().includes(t) ||
-    (c.cedula ?? "").toLowerCase().includes(t)
+    (c.cedula ?? "").toLowerCase().includes(t) ||
+    (c.telefono ?? "").includes(t) ||
+    (c.telefonoSecundario ?? "").includes(t)
   );
 }
+
+function formatoUltimoAcceso(f: FilaCasa) {
+  if (f.ultimoAcceso) {
+    return `Último acceso: ${new Date(f.ultimoAcceso).toLocaleDateString("es-EC", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}`;
+  }
+  return f.tieneAcceso ? "Sin sesión registrada todavía" : "Esta casa no tiene usuario creado";
+}
+
+const ESTADO_FILTROS = ["Todos", "propietario", "arrendatario", "familiar", "sin_acceso"] as const;
+type EstadoFiltro = (typeof ESTADO_FILTROS)[number];
+const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
+  Todos: "Todos los estados",
+  propietario: "Propietario",
+  arrendatario: "Arrendatario",
+  familiar: "Familiar",
+  sin_acceso: "Sin acceso",
+};
+
+const PAGO_FILTROS = ["Todos", "ok", "due", "none"] as const;
+type PagoFiltro = (typeof PAGO_FILTROS)[number];
+const PAGO_FILTRO_LABEL: Record<PagoFiltro, string> = {
+  Todos: "Todos los pagos",
+  ok: "Al día",
+  due: "Pendiente",
+  none: "Sin acceso",
+};
 
 function PagoBadge({ estado }: { estado: EstadoCasa }) {
   if (estado === "ok") return <Badge variant="success">Al día</Badge>;
@@ -57,28 +91,50 @@ function PagoBadge({ estado }: { estado: EstadoCasa }) {
 export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
   const [bloque, setBloque] = useState<Bloque>("A");
   const [busqueda, setBusqueda] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+  const [pagoFiltro, setPagoFiltro] = useState<PagoFiltro>("Todos");
   const [casaAbierta, setCasaAbierta] = useState<string | null>(null);
   const [casaEstadoCuenta, setCasaEstadoCuenta] = useState<string | null>(null);
 
   const filtradas = useMemo(() => {
-    const porBloque = casas.filter((c) => esDelBloque(c, bloque));
     const t = busqueda.trim();
-    return t ? porBloque.filter((c) => coincide(c, t)) : porBloque;
-  }, [casas, bloque, busqueda]);
+    return casas.filter((c) => {
+      if (!esDelBloque(c, bloque)) return false;
+      if (estadoFiltro !== "Todos") {
+        const estadoCasa = c.tipoResidente ?? "sin_acceso";
+        if (estadoCasa !== estadoFiltro) return false;
+      }
+      if (pagoFiltro !== "Todos" && c.estado !== pagoFiltro) return false;
+      if (t && !coincide(c, t)) return false;
+      return true;
+    });
+  }, [casas, bloque, estadoFiltro, pagoFiltro, busqueda]);
 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por casa, nombre, correo o cédula…"
-            className="h-9 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
+        <SearchInput
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por casa, nombre, correo, cédula o teléfono…"
+        />
+        <Select
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as EstadoFiltro)}
+        >
+          {ESTADO_FILTROS.map((e) => (
+            <option key={e} value={e}>
+              {ESTADO_FILTRO_LABEL[e]}
+            </option>
+          ))}
+        </Select>
+        <Select value={pagoFiltro} onChange={(e) => setPagoFiltro(e.target.value as PagoFiltro)}>
+          {PAGO_FILTROS.map((p) => (
+            <option key={p} value={p}>
+              {PAGO_FILTRO_LABEL[p]}
+            </option>
+          ))}
+        </Select>
         <div className="inline-flex gap-0.5 rounded-lg bg-secondary p-0.5">
           {BLOQUES.map((b) => (
             <button
@@ -101,7 +157,7 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[880px] text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
               <th className="px-4 py-3">Casa</th>
@@ -110,13 +166,12 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Cédula</th>
               <th className="px-4 py-3">Contacto</th>
-              <th className="px-4 py-3">Último acceso</th>
-              <th className="px-4 py-3 text-right">Acciones</th>
+              <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtradas.map((f) => (
-              <tr key={f.id} className="hover:bg-accent/40">
+              <tr key={f.id} className="group hover:bg-accent/40">
                 <td className="px-4 py-3 whitespace-nowrap">
                   <button
                     type="button"
@@ -159,19 +214,14 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                  {f.ultimoAcceso
-                    ? new Date(f.ultimoAcceso).toLocaleDateString("es-EC", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : f.tieneAcceso
-                      ? "Sin sesión registrada"
-                      : "—"}
-                </td>
-                <td className="px-4 py-3">
+                <td className="sticky right-0 bg-card px-4 py-3 group-hover:bg-accent/40">
                   <div className="flex items-center justify-end gap-3">
+                    <span
+                      title={formatoUltimoAcceso(f)}
+                      className="text-muted-foreground"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </span>
                     <button
                       type="button"
                       onClick={() => setCasaEstadoCuenta(f.numero)}
@@ -195,7 +245,7 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
             {filtradas.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   No se encontraron resultados.

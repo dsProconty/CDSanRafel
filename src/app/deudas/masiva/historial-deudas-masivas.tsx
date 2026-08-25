@@ -1,9 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Ban } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
+import { Select } from "@/components/ui/select";
 import { anularLoteDeudaMasiva, type LoteDeudaMasiva } from "./actions";
 
 export type FilaLote = Omit<
@@ -16,8 +18,34 @@ export type FilaLote = Omit<
   automatica: boolean;
 };
 
+const ESTADO_FILTROS = ["Todos", "vigente", "anulada"] as const;
+type EstadoFiltro = (typeof ESTADO_FILTROS)[number];
+const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
+  Todos: "Todos los estados",
+  vigente: "Vigente",
+  anulada: "Anulada",
+};
+
 export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
   const [pending, startTransition] = useTransition();
+  const [busqueda, setBusqueda] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+
+  const filtradas = useMemo(() => {
+    const t = busqueda.trim().toLowerCase();
+    return filas.filter((f) => {
+      if (estadoFiltro !== "Todos" && f.anulada !== (estadoFiltro === "anulada")) return false;
+      if (
+        t &&
+        !f.concepto.toLowerCase().includes(t) &&
+        !(f.descripcion ?? "").toLowerCase().includes(t) &&
+        !(f.usuarioEmail ?? "").toLowerCase().includes(t)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [filas, busqueda, estadoFiltro]);
 
   if (filas.length === 0) {
     return (
@@ -28,7 +56,25 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
   }
 
   return (
-    <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por concepto, descripción o creada por…"
+        />
+        <Select
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as EstadoFiltro)}
+        >
+          {ESTADO_FILTROS.map((e) => (
+            <option key={e} value={e}>
+              {ESTADO_FILTRO_LABEL[e]}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
@@ -38,12 +84,12 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
             <th className="px-4 py-3">Descripción</th>
             <th className="px-4 py-3">Casas</th>
             <th className="px-4 py-3">Creada por</th>
-            <th className="px-4 py-3 text-right">Estado</th>
+            <th className="sticky right-0 bg-muted px-4 py-3 text-right">Estado</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {filas.map((f) => (
-            <tr key={f.id} className="hover:bg-accent/40">
+          {filtradas.map((f) => (
+            <tr key={f.id} className="group hover:bg-accent/40">
               <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                 {f.fecha}
               </td>
@@ -75,7 +121,7 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
               <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                 {f.usuarioEmail ?? "—"}
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="sticky right-0 bg-card px-4 py-3 text-right group-hover:bg-accent/40">
                 {f.anulada ? (
                   <Badge variant="outline">Anulada</Badge>
                 ) : (
@@ -103,8 +149,16 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
               </td>
             </tr>
           ))}
+          {filtradas.length === 0 && (
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No se encontraron resultados.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

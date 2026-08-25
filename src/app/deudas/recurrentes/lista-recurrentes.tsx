@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pause, Play, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
+import { Select } from "@/components/ui/select";
 import {
   generarSiguienteAhora,
   pausarRecurrente,
@@ -12,9 +14,37 @@ import {
   type Recurrente,
 } from "./actions";
 
+const ESTADO_FILTROS = ["Todos", "activo", "pausado", "completo"] as const;
+type EstadoFiltro = (typeof ESTADO_FILTROS)[number];
+const ESTADO_FILTRO_LABEL: Record<EstadoFiltro, string> = {
+  Todos: "Todos los estados",
+  activo: "Activo",
+  pausado: "Pausado",
+  completo: "Completo",
+};
+
 export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [busqueda, setBusqueda] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>("Todos");
+
+  const filtrados = useMemo(() => {
+    const t = busqueda.trim().toLowerCase();
+    return recurrentes.filter((r) => {
+      const completo = r.totalPeriodos !== null && r.periodosGenerados >= r.totalPeriodos;
+      const estado = completo ? "completo" : r.activo ? "activo" : "pausado";
+      if (estadoFiltro !== "Todos" && estado !== estadoFiltro) return false;
+      if (
+        t &&
+        !r.conceptoNombre.toLowerCase().includes(t) &&
+        !(r.usuarioEmail ?? "").toLowerCase().includes(t)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [recurrentes, busqueda, estadoFiltro]);
 
   if (recurrentes.length === 0) {
     return (
@@ -25,7 +55,25 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
   }
 
   return (
-    <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por concepto o creado por…"
+        />
+        <Select
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as EstadoFiltro)}
+        >
+          {ESTADO_FILTROS.map((e) => (
+            <option key={e} value={e}>
+              {ESTADO_FILTRO_LABEL[e]}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
       <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
@@ -36,15 +84,15 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
             <th className="px-4 py-3">Excluidas</th>
             <th className="px-4 py-3">Creado por</th>
             <th className="px-4 py-3">Estado</th>
-            <th className="px-4 py-3 text-right">Acciones</th>
+            <th className="sticky right-0 bg-muted px-4 py-3 text-right">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {recurrentes.map((r) => {
+          {filtrados.map((r) => {
             const completo =
               r.totalPeriodos !== null && r.periodosGenerados >= r.totalPeriodos;
             return (
-              <tr key={r.id} className="hover:bg-accent/40">
+              <tr key={r.id} className="group hover:bg-accent/40">
                 <td className="px-4 py-3 font-medium text-foreground">
                   {r.conceptoNombre}
                 </td>
@@ -73,7 +121,7 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
                     <Badge variant="warning">Pausado</Badge>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="sticky right-0 bg-card px-4 py-3 group-hover:bg-accent/40">
                   <div className="flex justify-end gap-3">
                     {!completo && (
                       <button
@@ -117,8 +165,16 @@ export function ListaRecurrentes({ recurrentes }: { recurrentes: Recurrente[] })
               </tr>
             );
           })}
+          {filtrados.length === 0 && (
+            <tr>
+              <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No se encontraron resultados.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Eye, X } from "lucide-react";
+
+import { SearchInput } from "@/components/ui/search-input";
 
 export type FilaHistorial = {
   id: number;
@@ -21,6 +23,17 @@ export type FilaHistorial = {
 
 export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
   const [detalle, setDetalle] = useState<FilaHistorial | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+
+  const filtradas = useMemo(() => {
+    const t = busqueda.trim().toLowerCase();
+    if (!t) return filas;
+    return filas.filter(
+      (f) =>
+        (f.usuarioEmail ?? "").toLowerCase().includes(t) ||
+        f.nombreArchivo.toLowerCase().includes(t)
+    );
+  }, [filas, busqueda]);
 
   if (filas.length === 0) {
     return (
@@ -32,6 +45,13 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
 
   return (
     <>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por usuario o archivo…"
+        />
+      </div>
       <div className="mt-4 overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[760px] text-sm">
           <thead>
@@ -43,12 +63,12 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
               <th className="px-4 py-3">Abonos automáticos</th>
               <th className="px-4 py-3">Pendientes</th>
               <th className="px-4 py-3">Sin catalogar</th>
-              <th className="px-4 py-3 text-right">Detalle</th>
+              <th className="sticky right-0 bg-muted px-4 py-3 text-right">Detalle</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filas.map((f) => (
-              <tr key={f.id} className="hover:bg-accent/40">
+            {filtradas.map((f) => (
+              <tr key={f.id} className="group hover:bg-accent/40">
                 <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                   {f.fecha}
                 </td>
@@ -60,7 +80,7 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
                 <td className="px-4 py-3 text-success">{f.matchedAutomatico}</td>
                 <td className="px-4 py-3 text-warning">{f.pendienteRevision}</td>
                 <td className="px-4 py-3 text-destructive">{f.sinCatalogar}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="sticky right-0 bg-card px-4 py-3 text-right group-hover:bg-accent/40">
                   <button
                     type="button"
                     onClick={() => setDetalle(f)}
@@ -72,6 +92,13 @@ export function HistorialCargas({ filas }: { filas: FilaHistorial[] }) {
                 </td>
               </tr>
             ))}
+            {filtradas.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No se encontraron resultados.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
