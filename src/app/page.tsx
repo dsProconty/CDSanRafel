@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { eq, sum } from "drizzle-orm";
+import { eq, inArray, sum } from "drizzle-orm";
 import {
   AlertTriangle,
   Banknote,
@@ -10,7 +10,7 @@ import {
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { casas, deudas, movimientosBancarios, usuarios } from "@/db/schema";
+import { casas, deudas, movimientosBancarios } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,11 @@ export default async function HomePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-5xl px-6 py-8 lg:px-10">
-        {user.rol === "admin" ? <ResumenAdmin /> : <ResumenCasa casaId={user.casaId} />}
+        {user.rol === "admin" ? (
+          <ResumenAdmin />
+        ) : (
+          <ResumenPropietario usuarioId={Number(user.id)} />
+        )}
       </div>
     </AppShell>
   );
@@ -44,9 +48,8 @@ function moneda(valor: number) {
 }
 
 async function ResumenAdmin() {
-  const [listaCasas, listaUsuarios, listaDeudas, listaMovimientos] = await Promise.all([
-    db.select({ id: casas.id, numero: casas.numero }).from(casas),
-    db.select({ casaId: usuarios.casaId }).from(usuarios),
+  const [listaCasas, listaDeudas, listaMovimientos] = await Promise.all([
+    db.select({ id: casas.id, numero: casas.numero, usuarioId: casas.usuarioId }).from(casas),
     db.select({ casaId: deudas.casaId, monto: deudas.monto, fecha: deudas.fecha }).from(deudas),
     db
       .select({
@@ -57,10 +60,6 @@ async function ResumenAdmin() {
       })
       .from(movimientosBancarios),
   ]);
-
-  const casasConAcceso = new Set(
-    listaUsuarios.map((u) => u.casaId).filter((id): id is number => id !== null)
-  );
 
   const deudaPorCasa = new Map<number, number>();
   for (const d of listaDeudas) {
@@ -75,10 +74,11 @@ async function ResumenAdmin() {
   let saldoPendienteTotal = 0;
   let casasAlDia = 0;
   let casasPendientes = 0;
+  let casasSinAcceso = 0;
   const morosos: { numero: string; saldo: number }[] = [];
 
   for (const c of listaCasas) {
-    const tieneAcceso = casasConAcceso.has(c.id);
+    const tieneAcceso = c.usuarioId !== null;
     const saldo = (deudaPorCasa.get(c.id) ?? 0) - (abonoPorCasa.get(c.id) ?? 0);
     if (tieneAcceso) {
       if (saldo > 0.005) {
@@ -88,9 +88,10 @@ async function ResumenAdmin() {
       } else {
         casasAlDia++;
       }
+    } else {
+      casasSinAcceso++;
     }
   }
-  const casasSinAcceso = listaCasas.length - casasConAcceso.size;
   morosos.sort((a, b) => b.saldo - a.saldo);
 
   const pendienteRevision = listaMovimientos.filter(
@@ -285,57 +286,102 @@ async function ResumenAdmin() {
   );
 }
 
-async function ResumenCasa({ casaId }: { casaId: number | null }) {
-  if (!casaId) {
-    return <p className="text-sm text-muted-foreground">Sin casa asociada.</p>;
-  }
-
-  const [casa] = await db.select().from(casas).where(eq(casas.id, casaId)).limit(1);
-  const [{ totalAbonado }] = await db
-    .select({ totalAbonado: sum(movimientosBancarios.monto) })
-    .from(movimientosBancarios)
-    .where(eq(movimientosBancarios.casaId, casaId));
-  const [{ totalDeudas }] = await db
-    .select({ totalDeudas: sum(deudas.monto) })
-    .from(deudas)
-    .where(eq(deudas.casaId, casaId));
-
-  const abonado = Number(totalAbonado ?? 0);
-  const deuda = Number(totalDeudas ?? 0);
+function TarjetaCasa({
+  casa,
+  deuda,
+  abonado,
+}: {
+  casa: { numero: string; bloque: string };
+  deuda: number;
+  abonado: number;
+}) {
   const saldo = deuda - abonado;
   const alDia = saldo <= 0;
 
   return (
+    <div className="max-w-md rounded-lg border border-border bg-card px-6 py-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">
+          Casa {casa.numero}
+        </h2>
+        <span className="text-xs text-muted-foreground">Bloque {casa.bloque}</span>
+      </div>
+      <p
+        className={`mt-2 text-3xl font-semibold ${alDia ? "text-success" : "text-destructive"}`}
+      >
+        {alDia
+          ? `$${Math.abs(saldo).toFixed(2)} a favor`
+          : `$${saldo.toFixed(2)} pendiente`}
+      </p>
+      <Badge variant={alDia ? "success" : "destructive"} className="mt-2">
+        {alDia ? "Al día" : "Saldo pendiente de pago"}
+      </Badge>
+      <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Deudas</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
+            ${deuda.toFixed(2)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Abonado</dt>
+          <dd className="mt-0.5 font-medium text-foreground">
+            ${abonado.toFixed(2)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+async function ResumenPropietario({ usuarioId }: { usuarioId: number }) {
+  const misCasas = await db
+    .select({ id: casas.id, numero: casas.numero, bloque: casas.bloque })
+    .from(casas)
+    .where(eq(casas.usuarioId, usuarioId));
+
+  if (misCasas.length === 0) {
+    return <p className="text-sm text-muted-foreground">Sin casa asociada.</p>;
+  }
+
+  const idsCasas = misCasas.map((c) => c.id);
+  const [totalesDeuda, totalesAbono] = await Promise.all([
+    db
+      .select({ casaId: deudas.casaId, total: sum(deudas.monto) })
+      .from(deudas)
+      .where(inArray(deudas.casaId, idsCasas))
+      .groupBy(deudas.casaId),
+    db
+      .select({ casaId: movimientosBancarios.casaId, total: sum(movimientosBancarios.monto) })
+      .from(movimientosBancarios)
+      .where(inArray(movimientosBancarios.casaId, idsCasas))
+      .groupBy(movimientosBancarios.casaId),
+  ]);
+
+  const deudaPorCasa = new Map(totalesDeuda.map((d) => [d.casaId, Number(d.total ?? 0)]));
+  const abonoPorCasa = new Map(
+    totalesAbono.map((a) => [a.casaId as number, Number(a.total ?? 0)])
+  );
+
+  return (
     <div>
-      <p className="text-sm text-muted-foreground">Bloque {casa.bloque}</p>
-      <h1 className="mt-1 text-2xl font-semibold text-foreground">
-        Casa {casa.numero}
+      <h1 className="text-xl font-semibold text-foreground">
+        {misCasas.length === 1 ? `Casa ${misCasas[0].numero}` : "Mis casas"}
       </h1>
-      <div className="mt-6 max-w-md rounded-lg border border-border bg-card px-6 py-6">
-        <p
-          className={`text-3xl font-semibold ${alDia ? "text-success" : "text-destructive"}`}
-        >
-          {alDia
-            ? `$${Math.abs(saldo).toFixed(2)} a favor`
-            : `$${saldo.toFixed(2)} pendiente`}
-        </p>
-        <Badge variant={alDia ? "success" : "destructive"} className="mt-2">
-          {alDia ? "Al día" : "Saldo pendiente de pago"}
-        </Badge>
-        <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Deudas</dt>
-            <dd className="mt-0.5 font-medium text-foreground">
-              ${deuda.toFixed(2)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Abonado</dt>
-            <dd className="mt-0.5 font-medium text-foreground">
-              ${abonado.toFixed(2)}
-            </dd>
-          </div>
-        </dl>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {misCasas.length === 1
+          ? `Bloque ${misCasas[0].bloque}`
+          : `${misCasas.length} unidades a tu nombre`}
+      </p>
+      <div className="mt-6 flex flex-wrap gap-4">
+        {misCasas.map((casa) => (
+          <TarjetaCasa
+            key={casa.id}
+            casa={casa}
+            deuda={deudaPorCasa.get(casa.id) ?? 0}
+            abonado={abonoPorCasa.get(casa.id) ?? 0}
+          />
+        ))}
       </div>
       <Link
         href="/reportes"

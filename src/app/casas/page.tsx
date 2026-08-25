@@ -21,7 +21,7 @@ export default async function CasasPage() {
         numero: casas.numero,
         bloque: casas.bloque,
         propietario: casas.propietario,
-        usuarioCasaId: usuarios.casaId,
+        usuarioId: casas.usuarioId,
         email: usuarios.email,
         cedula: usuarios.cedula,
         telefono: usuarios.telefono,
@@ -30,7 +30,7 @@ export default async function CasasPage() {
         ultimoAcceso: usuarios.ultimoAcceso,
       })
       .from(casas)
-      .leftJoin(usuarios, eq(usuarios.casaId, casas.id)),
+      .leftJoin(usuarios, eq(casas.usuarioId, usuarios.id)),
     db
       .select({ casaId: deudas.casaId, total: sum(deudas.monto) })
       .from(deudas)
@@ -49,7 +49,7 @@ export default async function CasasPage() {
 
   const filas: FilaCasa[] = filasBase
     .map((f) => {
-      const tieneAcceso = f.usuarioCasaId != null;
+      const tieneAcceso = f.usuarioId != null;
       let estado: EstadoCasa = "none";
       if (tieneAcceso) {
         const saldo = (deudaPorCasaId.get(f.id) ?? 0) - (abonoPorCasaId.get(f.id) ?? 0);

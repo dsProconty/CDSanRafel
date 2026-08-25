@@ -102,6 +102,15 @@ export function CasaDetalleContent({
                 ? `Usuario actual: ${usuario.email}`
                 : "Esta casa no tiene usuario creado todavía."}
             </p>
+            {usuario && usuario.otrasCasas.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Este mismo usuario también tiene acceso a:{" "}
+                <span className="font-medium text-foreground">
+                  {usuario.otrasCasas.join(", ")}
+                </span>
+                . Editar correo/contraseña o eliminar acceso acá afecta esas casas también.
+              </p>
+            )}
           </div>
           {usuario && (
             <BotonEliminar

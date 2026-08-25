@@ -133,23 +133,10 @@ async function main() {
     const filaPrevia = casasVistasEnArchivo.get(numero);
     if (filaPrevia) {
       console.warn(
-        `Fila ${numeroFila}: la casa "${numero}" ya apareció en la fila ${filaPrevia} del archivo (con otro usuario) — se sobrescribe con esta fila, revisar manualmente cuál es la correcta.`
+        `Fila ${numeroFila}: la casa "${numero}" ya apareció en la fila ${filaPrevia} del archivo (con otro usuario) — una casa no puede tener 2 usuarios, se sobrescribe con esta fila, revisar manualmente cuál es la correcta.`
       );
     }
     casasVistasEnArchivo.set(numero, numeroFila);
-
-    const [existente] = await db
-      .select({ id: usuarios.id, casaId: usuarios.casaId })
-      .from(usuarios)
-      .where(eq(usuarios.email, email))
-      .limit(1);
-    if (existente && existente.casaId !== casa.id) {
-      console.warn(
-        `Fila ${numeroFila}: el correo "${email}" ya está en uso por otra casa (misma persona con más de una unidad no soportado aún), se salta.`
-      );
-      saltados++;
-      continue;
-    }
 
     if (propietario) {
       await db.update(casas).set({ propietario }).where(eq(casas.id, casa.id));
@@ -162,32 +149,47 @@ async function main() {
     }
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const [{ id }] = await db
-      .insert(usuarios)
-      .values({
-        casaId: casa.id,
-        email,
-        passwordHash,
-        rol: "propietario",
-        cedula: cedula || null,
-        telefono: telefono || null,
-        telefonoSecundario: telefonoSecundario || null,
-        tipoResidente,
-      })
-      .onConflictDoUpdate({
-        target: usuarios.casaId,
-        set: {
-          email,
+    // El mismo correo puede repetirse en varias filas (una persona con más
+    // de una casa) — se reusa el mismo usuario y solo se vincula la casa,
+    // en vez de crear un login duplicado.
+    const [existente] = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(eq(usuarios.email, email))
+      .limit(1);
+
+    let usuarioId: number;
+    if (existente) {
+      usuarioId = existente.id;
+      await db
+        .update(usuarios)
+        .set({
+          passwordHash,
           cedula: cedula || null,
           telefono: telefono || null,
           telefonoSecundario: telefonoSecundario || null,
           tipoResidente,
-        },
-      })
-      .returning({ id: usuarios.id });
+        })
+        .where(eq(usuarios.id, usuarioId));
+      actualizados++;
+    } else {
+      const [creado] = await db
+        .insert(usuarios)
+        .values({
+          email,
+          passwordHash,
+          rol: "propietario",
+          cedula: cedula || null,
+          telefono: telefono || null,
+          telefonoSecundario: telefonoSecundario || null,
+          tipoResidente,
+        })
+        .returning({ id: usuarios.id });
+      usuarioId = creado.id;
+      creados++;
+    }
 
-    if (existente?.id === id) actualizados++;
-    else creados++;
+    await db.update(casas).set({ usuarioId }).where(eq(casas.id, casa.id));
   }
 
   console.log(

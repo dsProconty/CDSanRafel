@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { asc, desc, eq, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, sum } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
@@ -32,6 +32,7 @@ export type CasaDetalleData = {
     telefono: string | null;
     telefonoSecundario: string | null;
     tipoResidente: TipoResidente;
+    otrasCasas: string[];
   } | null;
   referencias: { id: number; referencia: string }[];
   deudas: {
@@ -58,17 +59,34 @@ export async function obtenerDetalleCasa(
     .limit(1);
   if (!casa) return null;
 
-  const [usuario] = await db
-    .select({
-      email: usuarios.email,
-      cedula: usuarios.cedula,
-      telefono: usuarios.telefono,
-      telefonoSecundario: usuarios.telefonoSecundario,
-      tipoResidente: usuarios.tipoResidente,
-    })
-    .from(usuarios)
-    .where(eq(usuarios.casaId, casa.id))
-    .limit(1);
+  let usuario: CasaDetalleData["usuario"] = null;
+  if (casa.usuarioId) {
+    const [fila] = await db
+      .select({
+        email: usuarios.email,
+        cedula: usuarios.cedula,
+        telefono: usuarios.telefono,
+        telefonoSecundario: usuarios.telefonoSecundario,
+        tipoResidente: usuarios.tipoResidente,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, casa.usuarioId))
+      .limit(1);
+    if (fila?.email) {
+      const otras = await db
+        .select({ numero: casas.numero })
+        .from(casas)
+        .where(eq(casas.usuarioId, casa.usuarioId));
+      usuario = {
+        email: fila.email,
+        cedula: fila.cedula,
+        telefono: fila.telefono,
+        telefonoSecundario: fila.telefonoSecundario,
+        tipoResidente: fila.tipoResidente,
+        otrasCasas: otras.map((o) => o.numero).filter((n) => n !== numero),
+      };
+    }
+  }
 
   const referencias = await db
     .select({ id: catalogoReferenciasBancarias.id, referencia: catalogoReferenciasBancarias.referencia })
@@ -111,15 +129,7 @@ export async function obtenerDetalleCasa(
       bloque: casa.bloque,
       propietario: casa.propietario,
     },
-    usuario: usuario?.email
-      ? {
-          email: usuario.email,
-          cedula: usuario.cedula,
-          telefono: usuario.telefono,
-          telefonoSecundario: usuario.telefonoSecundario,
-          tipoResidente: usuario.tipoResidente,
-        }
-      : null,
+    usuario,
     referencias,
     deudas: listaDeudas,
     tipos,
@@ -246,6 +256,21 @@ export async function actualizarPropietario(casaId: number, propietario: string)
 
 export type GuardarUsuarioResultado = { ok: true } | { ok: false; error: string };
 
+// Si un usuario se queda sin ninguna casa asignada (se reasignó su email a
+// otra cuenta, o se le quitó el acceso a su última casa), no tiene sentido
+// dejar el login huérfano — se borra, salvo que sea un admin.
+async function limpiarUsuarioSiHuerfano(usuarioId: number) {
+  const [{ restantes }] = await db
+    .select({ restantes: count() })
+    .from(casas)
+    .where(eq(casas.usuarioId, usuarioId));
+  if (restantes === 0) {
+    await db
+      .delete(usuarios)
+      .where(and(eq(usuarios.id, usuarioId), eq(usuarios.rol, "propietario")));
+  }
+}
+
 export async function guardarUsuario(
   casaId: number,
   email: string,
@@ -258,29 +283,41 @@ export async function guardarUsuario(
     return { ok: false, error: "Completa correo y contraseña." };
   }
 
-  const [existente] = await db
-    .select({ casaId: usuarios.casaId })
-    .from(usuarios)
-    .where(eq(usuarios.email, emailNormalizado))
+  const [casaActual] = await db
+    .select({ usuarioId: casas.usuarioId })
+    .from(casas)
+    .where(eq(casas.id, casaId))
     .limit(1);
-  if (existente && existente.casaId !== casaId) {
-    return { ok: false, error: "Ese correo ya está en uso por otra casa." };
-  }
+  const usuarioAnteriorId = casaActual?.usuarioId ?? null;
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await db
-    .insert(usuarios)
-    .values({
-      casaId,
-      email: emailNormalizado,
-      passwordHash,
-      rol: "propietario",
-    })
-    .onConflictDoUpdate({
-      target: usuarios.casaId,
-      set: { email: emailNormalizado, passwordHash },
-    });
+  // Si el correo ya existe (ej. un propietario con más de una casa), se
+  // reusa esa cuenta en vez de crear un login duplicado — una casa nunca
+  // tiene más de un usuario, pero un usuario sí puede tener varias casas.
+  const [existente] = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(eq(usuarios.email, emailNormalizado))
+    .limit(1);
+
+  let usuarioId: number;
+  if (existente) {
+    usuarioId = existente.id;
+    await db.update(usuarios).set({ passwordHash }).where(eq(usuarios.id, usuarioId));
+  } else {
+    const [creado] = await db
+      .insert(usuarios)
+      .values({ email: emailNormalizado, passwordHash, rol: "propietario" })
+      .returning({ id: usuarios.id });
+    usuarioId = creado.id;
+  }
+
+  await db.update(casas).set({ usuarioId }).where(eq(casas.id, casaId));
+
+  if (usuarioAnteriorId && usuarioAnteriorId !== usuarioId) {
+    await limpiarUsuarioSiHuerfano(usuarioAnteriorId);
+  }
 
   revalidatePath("/casas");
   return { ok: true };
@@ -296,6 +333,12 @@ export async function actualizarAgenda(
   }
 ) {
   await requireAdmin();
+  const [casa] = await db
+    .select({ usuarioId: casas.usuarioId })
+    .from(casas)
+    .where(eq(casas.id, casaId))
+    .limit(1);
+  if (!casa?.usuarioId) return;
   await db
     .update(usuarios)
     .set({
@@ -304,13 +347,20 @@ export async function actualizarAgenda(
       telefonoSecundario: datos.telefonoSecundario.trim() || null,
       tipoResidente: datos.tipoResidente,
     })
-    .where(eq(usuarios.casaId, casaId));
+    .where(eq(usuarios.id, casa.usuarioId));
   revalidatePath("/casas");
 }
 
 export async function eliminarUsuario(casaId: number) {
   await requireAdmin();
-  await db.delete(usuarios).where(eq(usuarios.casaId, casaId));
+  const [casa] = await db
+    .select({ usuarioId: casas.usuarioId })
+    .from(casas)
+    .where(eq(casas.id, casaId))
+    .limit(1);
+  if (!casa?.usuarioId) return;
+  await db.update(casas).set({ usuarioId: null }).where(eq(casas.id, casaId));
+  await limpiarUsuarioSiHuerfano(casa.usuarioId);
   revalidatePath("/casas");
 }
 

@@ -10,14 +10,12 @@ export const authConfig: NextAuthConfig = {
     jwt: ({ token, user }) => {
       if (user) {
         token.rol = user.rol;
-        token.casaId = user.casaId;
       }
       return token;
     },
     session: ({ session, token }) => {
       session.user.id = token.sub!;
       session.user.rol = token.rol as "admin" | "propietario";
-      session.user.casaId = token.casaId as number | null;
       return session;
     },
   },

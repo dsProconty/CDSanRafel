@@ -35,7 +35,10 @@ export const categoriaGastoEnum = pgEnum("categoria_gasto", [
 ]);
 export type CategoriaGasto = (typeof categoriaGastoEnum.enumValues)[number];
 
-// Catálogo de casas del condominio (159 casas, Bloque A y B)
+// Catálogo de casas del condominio (159 casas, Bloque A y B). Una casa tiene
+// a lo sumo un usuario (usuarioId), pero el mismo usuario puede estar
+// asignado a varias casas (dueños con más de una unidad) — por eso la FK
+// vive acá y no en usuarios.
 export const casas = pgTable(
   "casas",
   {
@@ -43,17 +46,18 @@ export const casas = pgTable(
     numero: text("numero").notNull(), // ej: "1A", "36A"
     bloque: text("bloque").notNull(), // "A" | "B" (derivado del número)
     propietario: text("propietario"), // se completa manualmente, no viene en CASAS.xlsx
+    usuarioId: integer("usuario_id").references(() => usuarios.id), // null = sin acceso creado
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("casas_numero_idx").on(table.numero)]
 );
 
-// Un usuario = una casa. Password inicial = cédula (v1, sin flujo de reset).
+// Un usuario puede tener acceso a una o varias casas (ver casas.usuarioId).
+// Password inicial = cédula del propietario (v1, sin flujo de reset).
 export const usuarios = pgTable(
   "usuarios",
   {
     id: serial("id").primaryKey(),
-    casaId: integer("casa_id").references(() => casas.id), // null para admin (no está atado a una sola casa)
     email: text("email"),
     passwordHash: text("password_hash").notNull(),
     rol: rolUsuarioEnum("rol").notNull().default("propietario"),
@@ -68,10 +72,7 @@ export const usuarios = pgTable(
     ultimoAcceso: timestamp("ultimo_acceso"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [
-    uniqueIndex("usuarios_casa_id_idx").on(table.casaId),
-    uniqueIndex("usuarios_email_idx").on(table.email),
-  ]
+  (table) => [uniqueIndex("usuarios_email_idx").on(table.email)]
 );
 
 // Referencias bancarias asociadas a cada casa (relación 1 casa : N referencias).

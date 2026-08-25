@@ -32,7 +32,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             passwordHash: usuarios.passwordHash,
             rol: usuarios.rol,
             email: usuarios.email,
-            casaId: usuarios.casaId,
           })
           .from(usuarios)
           .where(eq(usuarios.email, email))
@@ -54,7 +53,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return {
           id: String(usuario.id),
           rol: usuario.rol,
-          casaId: usuario.casaId,
           email: usuario.email,
         };
       },
