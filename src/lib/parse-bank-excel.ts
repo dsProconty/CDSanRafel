@@ -43,23 +43,45 @@ function parsearMonto(valor: unknown): number {
   return monto;
 }
 
+// El parser no lee las columnas "Saldo efectivo"/"Saldo total" (índices 8 y
+// 9) — y algunas exportaciones del banco (ej. la pestaña "general" de un
+// "Estado de Cuenta" armado a mano) las traen ambas rotuladas "Monto" en vez
+// de sus nombres reales. Por eso no se exigen para reconocer el encabezado,
+// solo las columnas que el parser sí usa.
+const INDICES_VALIDADOS = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13];
+
+function buscarEncabezado(matriz: unknown[][]): number {
+  return matriz.findIndex((fila) => {
+    const texto = fila.map((c) => String(c).trim());
+    return INDICES_VALIDADOS.every((i) => texto[i] === COLUMNAS_ESPERADAS[i]);
+  });
+}
+
 export function parseBankExcel(buffer: Buffer): FilaBanco[] {
   const workbook = read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const matriz = utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: "",
-  });
 
-  // Antes de la tabla hay filas de metadata (cuenta, periodo, saldo) cuya
-  // cantidad puede variar; se ubica el encabezado real buscando la fila
-  // cuyo contenido coincide con las columnas esperadas.
-  const indiceEncabezado = matriz.findIndex((fila) => {
-    const texto = fila.map((c) => String(c).trim());
-    return COLUMNAS_ESPERADAS.every((col, i) => texto[i] === col);
-  });
+  // El archivo puede traer varias pestañas (ej. el "Estado de Cuenta" que
+  // arma el cliente agrega "Validación"/"transacciones"/"casas" antes o
+  // después de la hoja real de movimientos, y su nombre no es fijo — a
+  // veces es la primera hoja, a veces se llama "general"). Se busca en
+  // TODAS las hojas la que tenga el encabezado esperado, sin asumir que es
+  // la primera ni que se llama de una forma en particular.
+  let matriz: unknown[][] | null = null;
+  let indiceEncabezado = -1;
+  for (const nombreHoja of workbook.SheetNames) {
+    const intento = utils.sheet_to_json<unknown[]>(workbook.Sheets[nombreHoja], {
+      header: 1,
+      defval: "",
+    });
+    const indice = buscarEncabezado(intento);
+    if (indice !== -1) {
+      matriz = intento;
+      indiceEncabezado = indice;
+      break;
+    }
+  }
 
-  if (indiceEncabezado === -1) {
+  if (!matriz || indiceEncabezado === -1) {
     throw new Error(
       `El formato del Excel del banco cambió. Se esperaban las columnas: ${COLUMNAS_ESPERADAS.join(", ")}.`
     );
