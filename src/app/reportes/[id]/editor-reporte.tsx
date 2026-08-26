@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PresupuestoTree } from "../../egresos/categorias/actions";
+import { construirOpcionesClase } from "@/lib/opciones-clase";
 import {
   actualizarLineaEgreso,
   actualizarLineaIngreso,
@@ -23,24 +24,6 @@ import {
 
 function money(n: number) {
   return `$${n.toFixed(2)}`;
-}
-
-function construirOpcionesClase(presupuesto: PresupuestoTree) {
-  const tiposActivos = new Map(presupuesto.tipos.filter((t) => t.activo).map((t) => [t.id, t]));
-  const subtiposActivos = presupuesto.subtipos.filter((s) => s.activo && tiposActivos.has(s.tipoId));
-  const subtipoPorId = new Map(subtiposActivos.map((s) => [s.id, s]));
-
-  return presupuesto.clases
-    .filter((c) => c.activo && subtipoPorId.has(c.subtipoId))
-    .map((c) => {
-      const subtipo = subtipoPorId.get(c.subtipoId)!;
-      const tipo = tiposActivos.get(subtipo.tipoId)!;
-      return {
-        id: c.id,
-        label: `${tipo.nombre} › ${subtipo.nombre} › ${c.nombre}`,
-      };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function EditorReporte({

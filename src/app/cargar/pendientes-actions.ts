@@ -89,3 +89,18 @@ export async function asignarManual(
   revalidatePath("/");
   return { ok: true };
 }
+
+// Clasificación anticipada de un débito antes de que exista el informe del
+// mes: cuando se cree el borrador, `crearBorradorReporte` ya lo trae con
+// esta clase asignada (o pendiente, si acá se elige "Clasificar…" sin nada).
+export async function clasificarMovimientoDebito(
+  movimientoId: number,
+  claseId: number | null
+) {
+  await requireAdmin();
+  await db
+    .update(movimientosBancarios)
+    .set({ claseId })
+    .where(eq(movimientosBancarios.id, movimientoId));
+  revalidatePath("/cargar");
+}

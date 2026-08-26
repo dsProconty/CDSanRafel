@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
@@ -14,9 +14,13 @@ import { ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { StatPill } from "@/components/ui/stat-pill";
+import { obtenerPresupuesto } from "../egresos/categorias/actions";
+import { descripcionEgresoBancario } from "@/lib/clasificar-egreso";
+import { construirOpcionesClase } from "@/lib/opciones-clase";
 import { BotonCandidato } from "./boton-candidato";
 import { FormAsignarManual } from "./form-asignar-manual";
 import { HistorialCargas, type FilaHistorial } from "./historial-cargas";
+import { SelectorClaseDebito } from "./selector-clase-debito";
 import { UploadForm } from "./upload-form";
 
 export default async function CargarPage() {
@@ -101,6 +105,22 @@ export default async function CargarPage() {
     .select({ numero: casas.numero })
     .from(casas)
     .orderBy(casas.numero);
+
+  // Débitos ya cargados pero todavía sin usar en un informe: acá se ven
+  // ANTES de crear el informe económico del mes (no hay que esperar a
+  // crearlo para clasificarlos).
+  const debitosSinConsumir = await db
+    .select()
+    .from(movimientosBancarios)
+    .where(
+      and(eq(movimientosBancarios.estado, "debito"), isNull(movimientosBancarios.reporteEgresoLineaId))
+    )
+    .orderBy(desc(movimientosBancarios.fechaTransaccion));
+  const debitosPendientes = debitosSinConsumir.filter((m) => m.claseId === null);
+  const debitosAutoclasificados = debitosSinConsumir.filter((m) => m.claseId !== null);
+
+  const presupuesto = await obtenerPresupuesto();
+  const opcionesClase = construirOpcionesClase(presupuesto);
 
   return (
     <AppShell>
@@ -252,6 +272,75 @@ export default async function CargarPage() {
                   </p>
                   <div className="mt-3">
                     <FormAsignarManual movimientoId={mov.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </details>
+
+        <section className="mt-10">
+          <h2 className="text-base font-semibold text-foreground">
+            Egresos pendientes de clasificar
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Débitos ya cargados que todavía no se usaron en ningún informe.
+            Podés clasificarlos acá mismo, antes de crear el informe del mes
+            — o dejarlos así y clasificarlos después desde el editor del
+            informe.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatPill
+              label="pendientes de clasificar"
+              value={debitosPendientes.length}
+              color="warning"
+            />
+            <StatPill
+              label="autoclasificados, esperando el informe del mes"
+              value={debitosAutoclasificados.length}
+              color="success"
+            />
+          </div>
+        </section>
+
+        <details
+          className="group mt-4 rounded-lg border border-border bg-card"
+          open={debitosPendientes.length > 0 ? true : undefined}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Pendientes de clasificar ({debitosPendientes.length})
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                No matchearon ninguna palabra clave del catálogo de egresos.
+                Elegí tipo/subtipo/clase para cada uno.
+              </p>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+
+          {debitosPendientes.length === 0 ? (
+            <p className="border-t border-border px-6 py-4 text-sm text-muted-foreground">
+              Sin pendientes.
+            </p>
+          ) : (
+            <div className="divide-y divide-border border-t border-border">
+              {debitosPendientes.map((mov) => (
+                <div key={mov.id} className="px-6 py-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-lg font-semibold text-foreground">
+                      ${Number(mov.monto).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {mov.fechaTransaccion} · doc. {mov.documento}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {descripcionEgresoBancario(mov)}
+                  </p>
+                  <div className="mt-3">
+                    <SelectorClaseDebito movimientoId={mov.id} opciones={opcionesClase} />
                   </div>
                 </div>
               ))}
