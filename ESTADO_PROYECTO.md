@@ -428,6 +428,28 @@ ni las que no tienen cédula al inicio (solo un nombre) — esos casos
 siguen necesitando resolverse una vez a mano desde `/cargar` (ahí sí queda
 guardado el texto exacto del banco para la próxima vez, autocorrectivo).
 
+### Palabras clave de egresos manuales sacadas del DETALLE real (migración 0015)
+
+El cliente pidió analizar la columna DETALLE de la pestaña "Egresos" de su
+Excel real y sacar de ahí palabras clave para los subtipos de pagos
+manuales (transferencias) que todavía no tenían ninguna — los débitos
+automáticos ya estaban cubiertos desde la 0011. Se agregaron 9:
+`seguridad` (Servicio de seguridad privada), `caja chica` (Caja Chica),
+`conserje` (Sueldos de conserjes), `bomba,cisterna` (Mantenimiento de
+sistema de bombas), `jardin` (Mantenimiento de jardines...), `cobertor`
+(Mantenimiento de equipos áreas húmedas), `honorario` (Honorarios de
+Administrador), `arreglo` (Reparaciones comunales, dato débil — solo 2
+filas de ejemplo) y `tag vehicular` (Mantenimiento del sistema ingresos,
+dato débil — 2 detalles muy distintos entre sí). A propósito se evitaron
+palabras genéricas que hubieran cruzado subtipos hermanos (ej. "piscina"
+en vez de "cobertor" habría afectado también a Productos químicos/
+Suministros de Limpieza del mismo Tipo; "administracion" en vez de
+"honorario" podía chocar con "Software de administración"). Quedaron sin
+palabra clave 2 subtipos con detalles demasiado variados para sacar algo
+en común (Suministros y consumibles varios, Remodelación de áreas
+comunales) — esos siguen "pendiente de clasificar" hasta que el admin
+los complete a mano si encuentra un patrón.
+
 ## Clasificación de ingresos + convenio de pago (desde ago 2026)
 
 En la reunión del 27/ago/2026 (sponsor + Christian), quedó claro que además
