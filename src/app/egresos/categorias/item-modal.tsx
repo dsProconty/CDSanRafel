@@ -23,10 +23,13 @@ export type ModalState =
   | { nivel: "subtipo"; item: SubtipoFila | null; tipoId: number }
   | { nivel: "clase"; item: ClaseFila | null; subtipoId: number };
 
+// Los niveles internos (tipo/subtipo/clase, nombres de las tablas del
+// schema) se muestran al admin como Grupo/Tipo/Subtipo — así los llama el
+// cliente en su Excel real (columnas GRUPO/TIPO/SUBTIPO).
 const TITULOS: Record<ModalState["nivel"], string> = {
-  tipo: "tipo",
-  subtipo: "subtipo",
-  clase: "clase",
+  tipo: "grupo",
+  subtipo: "tipo",
+  clase: "subtipo",
 };
 
 export function ItemModal({

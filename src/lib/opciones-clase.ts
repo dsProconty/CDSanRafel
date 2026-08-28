@@ -2,10 +2,11 @@ import type { PresupuestoTree } from "@/app/egresos/categorias/actions";
 
 export type OpcionClase = { id: number; label: string };
 
-// Aplana el catálogo de presupuesto (Tipo → Subtipo → Clase) a una lista de
-// opciones "Tipo › Subtipo › Clase" para un <select> simple — se usa tanto
-// en el editor de informes como en la cola de egresos pendientes de /cargar.
-// Solo tipos/subtipos/clases activos.
+// Aplana el catálogo de presupuesto (Grupo → Tipo → Subtipo, nombres de
+// nivel que ve el admin — internamente son las tablas presupuestoTipo/
+// Subtipo/Clase) a una lista de opciones "Grupo › Tipo › Subtipo" para un
+// <select> simple — se usa tanto en el editor de informes como en la cola
+// de egresos pendientes de /cargar. Solo niveles activos.
 export function construirOpcionesClase(presupuesto: PresupuestoTree): OpcionClase[] {
   const tiposActivos = new Map(presupuesto.tipos.filter((t) => t.activo).map((t) => [t.id, t]));
   const subtiposActivos = presupuesto.subtipos.filter((s) => s.activo && tiposActivos.has(s.tipoId));

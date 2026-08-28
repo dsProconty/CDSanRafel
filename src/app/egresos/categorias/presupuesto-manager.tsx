@@ -57,7 +57,7 @@ export function PresupuestoManager({ tree }: { tree: PresupuestoTree }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Columna<TipoFila>
-        titulo="Tipo"
+        titulo="Grupo"
         items={tree.tipos}
         seleccionadoId={tipoSeleccionado}
         onSelect={(id) => {
@@ -70,7 +70,7 @@ export function PresupuestoManager({ tree }: { tree: PresupuestoTree }) {
         pending={pending}
       />
       <Columna<SubtipoFila>
-        titulo="Subtipo"
+        titulo="Tipo"
         items={subtipos}
         seleccionadoId={subtipoSeleccionado}
         onSelect={setSubtipoSeleccionado}
@@ -81,10 +81,10 @@ export function PresupuestoManager({ tree }: { tree: PresupuestoTree }) {
         onToggle={(item) => toggle(alternarActivoSubtipo, item.id, !item.activo)}
         pending={pending}
         deshabilitado={!tipoSeleccionado}
-        vacio={!tipoSeleccionado ? "Elegí un tipo primero." : "Sin subtipos todavía."}
+        vacio={!tipoSeleccionado ? "Elegí un grupo primero." : "Sin tipos todavía."}
       />
       <Columna<ClaseFila>
-        titulo="Clase"
+        titulo="Subtipo"
         items={clases}
         seleccionadoId={null}
         onSelect={() => {}}
@@ -96,7 +96,7 @@ export function PresupuestoManager({ tree }: { tree: PresupuestoTree }) {
         onToggle={(item) => toggle(alternarActivoClase, item.id, !item.activo)}
         pending={pending}
         deshabilitado={!subtipoSeleccionado}
-        vacio={!subtipoSeleccionado ? "Elegí un subtipo primero." : "Sin clases todavía."}
+        vacio={!subtipoSeleccionado ? "Elegí un tipo primero." : "Sin subtipos todavía."}
         mostrarPalabrasClave
       />
 

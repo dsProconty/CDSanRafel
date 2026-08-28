@@ -398,7 +398,7 @@ export default async function CargarPage() {
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 No matchearon ninguna palabra clave del catálogo de egresos.
-                Elegí tipo/subtipo/clase para cada uno.
+                Elegí grupo/tipo/subtipo para cada uno.
               </p>
             </div>
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />

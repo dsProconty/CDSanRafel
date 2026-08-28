@@ -21,10 +21,10 @@ export default async function CategoriasEgresoPage() {
             Categorías de egreso
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para
+            Catálogo de presupuesto en 3 niveles (Grupo → Tipo → Subtipo) para
             clasificar los gastos del informe económico. Los egresos que no
             se clasifican quedan &quot;pendiente de clasificar&quot; hasta que
-            un admin les asigne una clase acá — salvo los servicios fijos
+            un admin les asigne un subtipo acá — salvo los servicios fijos
             (teléfono, internet, agua, luz) que se autoclasifican por palabra
             clave.
           </p>

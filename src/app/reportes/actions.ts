@@ -548,7 +548,7 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
   if (sinClasificar > 0) {
     return {
       ok: false,
-      error: `Hay ${sinClasificar} egreso${sinClasificar !== 1 ? "s" : ""} pendiente${sinClasificar !== 1 ? "s" : ""} de clasificar. Asignale tipo/subtipo/clase antes de generar el PDF.`,
+      error: `Hay ${sinClasificar} egreso${sinClasificar !== 1 ? "s" : ""} pendiente${sinClasificar !== 1 ? "s" : ""} de clasificar. Asignale grupo/tipo/subtipo antes de generar el PDF.`,
     };
   }
   const sinComprobante = detalle.lineasEgreso.filter(
