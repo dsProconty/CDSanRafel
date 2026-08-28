@@ -383,6 +383,13 @@ export const reporteIngresoLinea = pgTable("reporte_ingreso_linea", {
 // clasificar" (el admin cargó el gasto pero todavía no le asignó tipo/
 // subtipo/clase del presupuesto) — excepto que se autoclasifique al crearla
 // por matchear `presupuestoClase.palabrasClave` contra `subtipo`.
+// `requiereComprobante`/`comprobanteUrl` (desde ago 2026): pedido del
+// cliente en la reunión del 27/ago/2026 — un gasto pagado manualmente (no
+// un débito automático de servicios fijos) necesita factura/recibo
+// escaneado de respaldo para auditoría; la línea queda marcada como
+// "incompleta" en la UI y no se puede generar el PDF hasta subirlo. Los
+// débitos automáticos (agua/luz/internet/teléfono/comisiones) no lo
+// necesitan — ver `requiereComprobanteBancario` en clasificar-egreso.ts.
 export const reporteEgresoLinea = pgTable("reporte_egreso_linea", {
   id: serial("id").primaryKey(),
   reporteId: integer("reporte_id")
@@ -392,6 +399,8 @@ export const reporteEgresoLinea = pgTable("reporte_egreso_linea", {
   subtipo: text("subtipo").notNull(),
   monto: numeric("monto", { precision: 12, scale: 2 }).notNull().default("0"),
   orden: integer("orden").notNull().default(0),
+  requiereComprobante: boolean("requiere_comprobante").notNull().default(true),
+  comprobanteUrl: text("comprobante_url"),
 });
 
 // Casas candidatas sugeridas cuando una referencia matchea con más de 1 casa

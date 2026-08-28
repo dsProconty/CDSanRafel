@@ -131,7 +131,8 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   presupuesto. Genera PDF con `@react-pdf/renderer` (con gráfico de saldo
   bancario histórico, tabla de ingresos/egresos, y comparativo ingresos vs.
   egresos de los últimos 3 meses), se sube a Vercel Blob, `pdfUrl` queda
-  guardado.
+  guardado. `reporteEgresoLinea.requiereComprobante`/`comprobanteUrl`
+  (desde ago 2026) — ver "Comprobantes de egreso" más abajo.
 
 ## Un usuario puede tener varias casas (desde ago 2026)
 
@@ -164,7 +165,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
 | `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
-| `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase; no se puede generar el PDF con egresos pendientes —, botón "Generar y publicar PDF" |
+| `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase —, columna Comprobante (subir factura/recibo PDF/JPG/PNG por línea, "Incompleto" hasta subirlo; los débitos automáticos no lo necesitan); no se puede generar el PDF con egresos pendientes de clasificar o sin comprobante —, botón "Generar y publicar PDF" |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
 
 Todas las tablas del sistema comparten los mismos componentes chicos
@@ -465,6 +466,61 @@ histórico, tabla Ingresos, tabla Egresos agrupada, tabla Pagos con
 #casas pagaron/mora) ya estaba construido de una sesión anterior y
 resultó calzar bastante bien con lo que Christian arma a mano ("ya me
 queda claro, igualito yo", dijo él mismo viendo la demo en la llamada).
+
+## Comprobantes de egreso (desde ago 2026)
+
+Último pedido de la reunión del 27/ago/2026: todo egreso pagado
+manualmente necesita su factura/recibo/nota de venta escaneada como
+respaldo de auditoría — Christian: "esto sí es obligatorio, porque esto en
+auditoría verifican en qué se gastó". Mientras no se suba, la línea debe
+quedar visualmente marcada como incompleta. Los **débitos automáticos**
+(agua/luz/internet/teléfono/comisiones bancarias) quedaron explícitamente
+afuera de este requisito — Christian los tiene guardados aparte solo como
+respaldo propio, "no se auditan, digamos, porque estos son automáticos".
+
+Implementado en `reporteEgresoLinea.requiereComprobante`/`comprobanteUrl`
+(migración `0013`, columnas puramente aditivas — las líneas que ya
+existían antes de esta migración se marcan `requiereComprobante = false`
+a propósito, para no bloquear la regeneración del PDF de informes de
+meses ya cerrados que nunca tuvieron este campo):
+
+- Al crear el borrador del informe, cada línea de egreso importada del
+  banco (`crearBorradorReporte`) se marca según
+  `requiereComprobanteBancario` (`src/lib/clasificar-egreso.ts`): un
+  débito con concepto genérico "Pago a terceros" (transferencia manual que
+  Christian inicia él mismo) sí requiere comprobante; un débito con
+  concepto específico (ej. "Cuota otecel", "Recaud.agua potable quito tr")
+  es un servicio fijo automático y no lo requiere. **No** se usa si la
+  línea autoclasificó por palabra clave como proxy de "es automático" —
+  esa autoclasificación también se usa para gastos manuales recurrentes
+  (ej. "pintura"), que si necesitan comprobante.
+- Las líneas que el admin agrega a mano en el editor (`agregarLineaEgreso`)
+  quedan `requiereComprobante = true` por default (son pagos manuales que
+  el admin tipeó), editable con un toggle "No requiere"/"Sí requiere" por
+  si la regla se equivocó en un caso puntual.
+- Columna "Comprobante" en la tabla de egresos del editor
+  (`src/app/reportes/[id]/comprobante-cell.tsx`): botón para subir
+  PDF/JPG/PNG (máx. 20MB) a Vercel Blob — mismo mecanismo que el PDF del
+  informe (`nombreArchivo` con prefijo `comprobantes/<reporteId>/<lineaId>-
+  timestamp`) —, badge "Incompleto"/"Cargado" y link "Ver".
+  `generarPdfReporte` bloquea la generación (mismo patrón que el bloqueo
+  ya existente por egresos sin clasificar) mientras haya alguna línea que
+  requiera comprobante y no lo tenga.
+- **Pendiente de decidir con el cliente**: dónde guardar los PDFs a largo
+  plazo. Se implementó con Vercel Blob (ya integrado, mismo store que usan
+  los PDF de informes) por ser lo más simple y ya probado — pero en la
+  llamada Christian propuso como alternativa (si el volumen genera un
+  costo relevante: ~31 comprobantes/mes, todos PDF, estimado ~200MB/mes)
+  guardarlos en la máquina del administrador y que el sistema solo guarde
+  un código de referencia. No se implementó esa alternativa — si hace
+  falta más adelante, sería una migración de `comprobanteUrl` (mover de
+  "URL pública de Blob" a "código que el admin busca en su máquina").
+- **No se construyó** el módulo aparte para archivar los PDFs mensuales de
+  respaldo de los débitos automáticos (agua/luz/internet/teléfono) que
+  Christian mencionó como idea suelta ("no sé si más bien un módulo
+  independiente, aparte que simplemente diga cargar documentos") — quedó
+  claro en la llamada que no es prioridad ("por no olvidarme te expliqué,
+  pero no es prioridad").
 
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 

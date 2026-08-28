@@ -16,7 +16,11 @@ import {
   reportesFinancieros,
   usuarios,
 } from "@/db/schema";
-import { descripcionEgresoBancario, intentarAutoclasificarEgreso } from "@/lib/clasificar-egreso";
+import {
+  descripcionEgresoBancario,
+  intentarAutoclasificarEgreso,
+  requiereComprobanteBancario,
+} from "@/lib/clasificar-egreso";
 import {
   calcularEstadoCasas,
   NOMBRES_MES,
@@ -206,6 +210,7 @@ export async function crearBorradorReporte(
           subtipo: descripcionEgresoBancario(m),
           monto: m.monto,
           orden: i,
+          requiereComprobante: requiereComprobanteBancario(m.concepto),
         }))
       )
       .returning({ id: reporteEgresoLinea.id });
@@ -242,6 +247,8 @@ export type ReporteDetalle = {
     claseNombre: string | null;
     subtipo: string;
     monto: string;
+    requiereComprobante: boolean;
+    comprobanteUrl: string | null;
   }[];
 };
 
@@ -274,6 +281,8 @@ export async function obtenerReporteDetalle(id: number): Promise<ReporteDetalle 
         claseNombre: presupuestoClase.nombre,
         subtipo: reporteEgresoLinea.subtipo,
         monto: reporteEgresoLinea.monto,
+        requiereComprobante: reporteEgresoLinea.requiereComprobante,
+        comprobanteUrl: reporteEgresoLinea.comprobanteUrl,
       })
       .from(reporteEgresoLinea)
       .leftJoin(presupuestoClase, eq(presupuestoClase.id, reporteEgresoLinea.claseId))
@@ -405,6 +414,73 @@ export async function actualizarLineaEgreso(
   return { ok: true };
 }
 
+// Marca/desmarca a mano que una línea necesita comprobante — para corregir
+// la regla automática (ej. una transferencia manual que en realidad no
+// necesita factura, o un débito automático raro que sí).
+export async function alternarRequiereComprobante(
+  id: number,
+  reporteId: number,
+  requiereComprobante: boolean
+): Promise<Resultado> {
+  const session = await requireAdmin();
+  if (!session) return { ok: false, error: "No autorizado." };
+  await db
+    .update(reporteEgresoLinea)
+    .set(
+      requiereComprobante
+        ? { requiereComprobante }
+        : { requiereComprobante, comprobanteUrl: null }
+    )
+    .where(eq(reporteEgresoLinea.id, id));
+  revalidatePath(`/reportes/${reporteId}`);
+  return { ok: true };
+}
+
+const TIPOS_COMPROBANTE_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png"];
+const TAMANO_MAXIMO_COMPROBANTE = 20 * 1024 * 1024; // 20MB — de sobra para una foto o PDF escaneado
+
+export type SubirComprobanteResultado = { ok: true; url: string } | { ok: false; error: string };
+
+// Factura/recibo/nota de venta del gasto — obligatorio para auditoría en
+// todo egreso pagado manualmente (pedido del cliente, reunión 27/ago/2026).
+// Se sube a Vercel Blob, igual que los PDF de informes.
+export async function subirComprobanteEgreso(
+  id: number,
+  reporteId: number,
+  formData: FormData
+): Promise<SubirComprobanteResultado> {
+  const session = await requireAdmin();
+  if (!session) return { ok: false, error: "No autorizado." };
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Elegí un archivo." };
+  }
+  if (!TIPOS_COMPROBANTE_PERMITIDOS.includes(archivo.type)) {
+    return { ok: false, error: "Solo se aceptan PDF, JPG o PNG." };
+  }
+  if (archivo.size > TAMANO_MAXIMO_COMPROBANTE) {
+    return { ok: false, error: "El archivo pesa más de 20MB." };
+  }
+
+  const extension = archivo.type === "application/pdf" ? "pdf" : archivo.type === "image/png" ? "png" : "jpg";
+  const nombreArchivo = `comprobantes/${reporteId}/${id}-${Date.now()}.${extension}`;
+  const buffer = Buffer.from(await archivo.arrayBuffer());
+  const blob = await put(nombreArchivo, buffer, {
+    access: "public",
+    contentType: archivo.type,
+    allowOverwrite: true,
+  });
+
+  await db
+    .update(reporteEgresoLinea)
+    .set({ comprobanteUrl: blob.url })
+    .where(eq(reporteEgresoLinea.id, id));
+
+  revalidatePath(`/reportes/${reporteId}`);
+  return { ok: true, url: blob.url };
+}
+
 export async function eliminarLineaEgreso(id: number, reporteId: number): Promise<Resultado> {
   const session = await requireAdmin();
   if (!session) return { ok: false, error: "No autorizado." };
@@ -473,6 +549,15 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
     return {
       ok: false,
       error: `Hay ${sinClasificar} egreso${sinClasificar !== 1 ? "s" : ""} pendiente${sinClasificar !== 1 ? "s" : ""} de clasificar. Asignale tipo/subtipo/clase antes de generar el PDF.`,
+    };
+  }
+  const sinComprobante = detalle.lineasEgreso.filter(
+    (l) => l.requiereComprobante && !l.comprobanteUrl
+  ).length;
+  if (sinComprobante > 0) {
+    return {
+      ok: false,
+      error: `Hay ${sinComprobante} egreso${sinComprobante !== 1 ? "s" : ""} sin comprobante. Subí la factura/recibo de cada uno antes de generar el PDF.`,
     };
   }
 

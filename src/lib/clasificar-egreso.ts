@@ -49,3 +49,13 @@ export function descripcionEgresoBancario(mov: {
   }
   return concepto || referencia3 || "Egreso sin descripción";
 }
+
+// Un débito con concepto genérico ("Pago a terceros") es una transferencia
+// manual que Christian inició él mismo — de ley necesita factura/recibo de
+// respaldo para auditoría (pedido del cliente, reunión 27/ago/2026). Los
+// débitos automáticos (concepto específico, ej. "Cuota otecel", "Recaud.agua
+// potable quito tr") no lo necesitan — Christian: "estos son los débitos
+// automáticos, estos ni siquiera los ven".
+export function requiereComprobanteBancario(concepto: string | null): boolean {
+  return CONCEPTOS_GENERICOS.has((concepto ?? "").trim().toLowerCase());
+}

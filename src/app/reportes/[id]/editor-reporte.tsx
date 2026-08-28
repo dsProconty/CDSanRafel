@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PresupuestoTree } from "../../egresos/categorias/actions";
 import { construirOpcionesClase } from "@/lib/opciones-clase";
+import { ComprobanteCell } from "./comprobante-cell";
 import {
   actualizarLineaEgreso,
   actualizarLineaIngreso,
@@ -224,7 +225,9 @@ export function EditorReporte({
           <span className="font-medium text-foreground">
             Catálogo → Egresos
           </span>
-          . No se puede generar el PDF con egresos pendientes.
+          . No se puede generar el PDF con egresos pendientes de clasificar o
+          sin comprobante — los débitos automáticos (agua/luz/internet/
+          teléfono/comisiones) no necesitan comprobante, el resto sí.
         </p>
         <div className="mt-3 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -233,6 +236,7 @@ export function EditorReporte({
                 <th className="px-4 py-2.5">Gasto</th>
                 <th className="px-4 py-2.5">Clasificación</th>
                 <th className="px-4 py-2.5">Monto</th>
+                <th className="px-4 py-2.5">Comprobante</th>
                 <th className="px-4 py-2.5 text-right">​</th>
               </tr>
             </thead>
@@ -300,6 +304,14 @@ export function EditorReporte({
                       className="h-8 w-28"
                     />
                   </td>
+                  <td className="px-4 py-2">
+                    <ComprobanteCell
+                      lineaId={linea.id}
+                      reporteId={detalle.id}
+                      requiereComprobante={linea.requiereComprobante}
+                      comprobanteUrl={linea.comprobanteUrl}
+                    />
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <button
                       type="button"
@@ -319,7 +331,7 @@ export function EditorReporte({
               ))}
               {lineasEgreso.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-4 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-4 py-4 text-center text-muted-foreground">
                     Sin gastos cargados todavía.
                   </td>
                 </tr>
@@ -329,6 +341,7 @@ export function EditorReporte({
                   Total general
                 </td>
                 <td className="px-4 py-2">{money(totalEgresos)}</td>
+                <td></td>
                 <td></td>
               </tr>
             </tbody>
