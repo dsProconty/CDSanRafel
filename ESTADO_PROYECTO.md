@@ -405,6 +405,29 @@ lee esas dos columnas, se relajó la validación del encabezado para exigir
 solo las columnas que sí se usan (`INDICES_VALIDADOS` en
 `src/lib/parse-bank-excel.ts`), no las 14 completas.
 
+### Matching de referencias tolerante a tildes/mayúsculas/espacios (ago 2026)
+
+Al probar con datos reales de julio, la mayoría de los créditos quedaban
+"sin catalogar" aunque el catálogo de referencias ya tuviera cargada la
+referencia de esa persona. Investigando: el catálogo se había completado a
+partir de la pestaña "CASAS" del Excel de resumen del cliente, que él tipeó
+a mano — no es una copia exacta carácter a carácter del texto que manda el
+banco (ej. "cañadas" en el catálogo vs "canadas" sin ñ en el banco real, o
+mayúsculas/espacios distintos). Como el matching comparaba texto exacto,
+cualquier diferencia así rompía el match aunque fuera la misma persona.
+
+Se corrigió `procesarMovimientosBancarios` (`src/lib/procesar-movimientos.ts`)
+para comparar con `normalizarReferencia` (`src/lib/normalizar.ts`: sin
+tildes/ñ, minúsculas, espacios de más colapsados) en vez de texto exacto —
+antes filtraba el catálogo con un `WHERE referencia IN (...)`, ahora trae
+todo el catálogo (a esta escala, unas pocas centenas de filas, es liviano)
+y compara normalizado en memoria. **Límite conocido**: esto solo arregla
+diferencias de tildes/mayúsculas/espacios — no arregla referencias del
+catálogo que tienen prefijos raros tipeados a mano (ej. "C 1708076417...")
+ni las que no tienen cédula al inicio (solo un nombre) — esos casos
+siguen necesitando resolverse una vez a mano desde `/cargar` (ahí sí queda
+guardado el texto exacto del banco para la próxima vez, autocorrectivo).
+
 ## Clasificación de ingresos + convenio de pago (desde ago 2026)
 
 En la reunión del 27/ago/2026 (sponsor + Christian), quedó claro que además

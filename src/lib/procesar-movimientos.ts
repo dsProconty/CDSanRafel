@@ -12,6 +12,7 @@ import {
   idTipoIngresoNoIdentificado,
   textoBusquedaIngreso,
 } from "./clasificar-ingreso";
+import { normalizarReferencia } from "./normalizar";
 import type { FilaBanco } from "./parse-bank-excel";
 
 export type ResumenCarga = {
@@ -81,23 +82,26 @@ export async function procesarMovimientosBancarios(
   const nuevosCreditos = nuevas.filter((f) => f.signo === "+");
   const nuevosDebitos = nuevas.filter((f) => f.signo === "-");
 
-  // --- Créditos: matching contra el catálogo de casas (igual que antes) ---
-  const referenciasUnicas = [...new Set(nuevosCreditos.map((f) => f.referencia))];
-  const catalogo = referenciasUnicas.length
-    ? await db
-        .select({
-          referencia: catalogoReferenciasBancarias.referencia,
-          casaId: catalogoReferenciasBancarias.casaId,
-        })
-        .from(catalogoReferenciasBancarias)
-        .where(inArray(catalogoReferenciasBancarias.referencia, referenciasUnicas))
-    : [];
+  // --- Créditos: matching contra el catálogo de casas ---
+  // Se compara normalizado (sin tildes/ñ, minúsculas, espacios colapsados)
+  // porque el catálogo cargado a mano no siempre coincide carácter a
+  // carácter con el texto real que manda el banco (ej. referencias con
+  // tildes tipeadas a mano vs el banco que las saca) — pedido del cliente
+  // ago 2026 tras encontrar varios casos así. Por eso se trae el catálogo
+  // completo en vez de filtrar por texto exacto en la consulta.
+  const catalogo = await db
+    .select({
+      referencia: catalogoReferenciasBancarias.referencia,
+      casaId: catalogoReferenciasBancarias.casaId,
+    })
+    .from(catalogoReferenciasBancarias);
 
-  const candidatosPorReferencia = new Map<string, number[]>();
+  const candidatosPorReferencia = new Map<string, Set<number>>();
   for (const fila of catalogo) {
-    const lista = candidatosPorReferencia.get(fila.referencia) ?? [];
-    lista.push(fila.casaId);
-    candidatosPorReferencia.set(fila.referencia, lista);
+    const clave = normalizarReferencia(fila.referencia);
+    const set = candidatosPorReferencia.get(clave) ?? new Set<number>();
+    set.add(fila.casaId);
+    candidatosPorReferencia.set(clave, set);
   }
 
   let matchedAutomatico = 0;
@@ -108,7 +112,9 @@ export async function procesarMovimientosBancarios(
 
   const creditosParaInsertar = await Promise.all(
     nuevosCreditos.map(async (fila) => {
-      const candidatos = candidatosPorReferencia.get(fila.referencia) ?? [];
+      const candidatos = [
+        ...(candidatosPorReferencia.get(normalizarReferencia(fila.referencia)) ?? []),
+      ];
       let estado: "matched" | "pendiente_revision" | "sin_catalogar";
       let casaId: number | null = null;
       let tipoIngresoId: number | null = null;
