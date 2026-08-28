@@ -243,9 +243,57 @@ Esquema: `presupuestoTipo` / `presupuestoSubtipo` / `presupuestoClase`
 sembró un placeholder (Mantenimiento/Operativos/Inversiones/Otros como Tipo,
 con una Clase "General" en cada uno para no dejar los egresos ya cargados
 como pendientes de golpe, + Clases de servicios básicos bajo "Operativos" con
-palabras clave) — **el cliente todavía tiene que compartir la lista real de
-ítems del presupuesto**, que se carga después vía la UI de `/egresos/
-categorias` sin tocar código.
+palabras clave) a la espera de que el cliente compartiera la lista real.
+
+### Catálogo real de presupuesto (desde la reunión del 27/ago/2026)
+
+En la reunión con el sponsor (Christian + su jefe), Christian compartió su
+Excel real de presupuesto anual (pestaña "Clasificación" del archivo
+"Informe de Ingresos y Egresos JUL2026.xlsx"). Migración `0011` (solo datos,
+sin cambio de schema — no la generó `drizzle-kit`, se agregó a mano su
+entrada en `_journal.json` igual que el gotcha de la `0007`) carga ese
+catálogo real:
+
+- Renombra los 3 Tipo placeholder que sí tienen equivalente real
+  ("Operativos" → "Gastos Operativos", "Mantenimiento" → "Gastos de
+  Mantenimiento"; "Inversiones" queda igual) **en vez de crear filas
+  nuevas**, para no dejar huérfanos los egresos que ya se hayan clasificado
+  con esos ids. "Otros" no tiene equivalente en el presupuesto real del
+  cliente — queda como catch-all para lo que no encaje en los 3 grupos
+  oficiales.
+- Agrega los Subtipo/Clase reales bajo cada Tipo (Administración y gestión,
+  Personal operativo, Servicios básicos comunales, Seguridad, Provisiones /
+  Áreas verdes-canchas-exteriores, Infraestructura comunal general, Sistema
+  de bombeo, Piscina-sauna-turco, Sistemas tecnológicos / Infraestructura
+  comunal general, Seguridad y tecnología), cada Clase con el presupuesto
+  anual 2026 real en `descripcion` (dato real del cliente, no inventado —
+  referencia hasta que el sistema compare presupuesto vs. gastado, no
+  pedido todavía).
+- Las clases placeholder "Teléfono" e "Internet" (separadas) se **fusionan**
+  en una sola clase real "Telefonía / internet" ($1080/año, una sola línea
+  en el presupuesto de Christian) — se migran antes las referencias
+  existentes (`reporteEgresoLinea.claseId`, `movimientosBancarios.claseId`)
+  a la clase nueva y recién ahí se borran las 2 viejas, conservando la unión
+  de sus palabras clave + las que ya estaban marcadas como pendientes de
+  agregar más abajo (otecel, movip, megadatos).
+- "Agua potable" y "Energía eléctrica" se mantuvieron (mismo nombre en el
+  presupuesto real) — solo se les completaron las palabras clave que ya
+  estaban marcadas como pendientes (emaap; eee quito/empresa electrica).
+- Se agregó "Costos Bancarios" (no existía en el placeholder) con palabras
+  clave `comision,cash,iva servicio,mantenimiento cuenta,tarifa` para que
+  las comisiones bancarias del banco se autoclasifiquen solas, como pidió
+  el cliente en la reunión (agrupar todas las comisiones chicas en una sola
+  línea del informe).
+- Validado corriendo las 12 migraciones (`0000`→`0011`) contra un Postgres
+  local limpio antes de este commit — la jerarquía final quedó idéntica al
+  Excel del cliente (ver query de verificación en el historial de esta
+  sesión si hace falta repetirla).
+
+**Igual que con cualquier cambio de datos que solo se corrió local: hay que
+aplicar el SQL de la `0011` a mano en el editor de Neon** (ver gotcha de
+"dos bases distintas" arriba) — no es un `ALTER TABLE`, así que no rompe el
+deploy de Vercel, pero sin correrlo el catálogo real no aparece en
+producción hasta que alguien la aplique.
 
 ## Ingesta automática de egresos desde el Excel del banco (desde ago 2026)
 
