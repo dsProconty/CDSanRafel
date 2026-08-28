@@ -28,6 +28,7 @@ const NAV_ADMIN: SidebarNavItem[] = [
       { href: "/deudas/conceptos", label: "Deudas" },
       { href: "/egresos/categorias", label: "Egresos" },
       { href: "/ingresos/tipos", label: "Ingresos" },
+      { href: "/referencias", label: "Referencias" },
     ],
   },
   {

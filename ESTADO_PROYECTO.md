@@ -85,9 +85,12 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   abajo): una casa tiene un solo usuario, pero el mismo usuario puede estar
   asignado a varias casas (dueños con más de una unidad). Migración `0007`.
 - **`catalogo_referencias_bancarias`** — `casaId` + `referencia` + `banco`
-  (default "Banco Guayaquil"). Relación 1 casa : N referencias. Se completa
-  también dinámicamente cuando el admin cataloga una referencia nueva desde
-  la cola de "sin catalogar".
+  (default "Banco Guayaquil"). Relación 1 casa : N referencias, y una misma
+  referencia puede repetirse en más de una casa a propósito (pagan desde la
+  misma cuenta) — único solo por (casaId, referencia). Se completa
+  dinámicamente cuando el admin cataloga una referencia nueva desde la cola
+  de "sin catalogar", y desde ago 2026 también tiene CRUD manual propio en
+  `/referencias` (submenú "Catálogo → Referencias").
 - **`tipos_expensa`** — catálogo simple: nombre, descripcion, activo.
   Sembrado con Ordinaria/Extraordinaria/Otros.
 - **`tipos_ingreso`** (desde ago 2026) — catálogo de clasificación de
@@ -165,6 +168,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
 | `/ingresos/tipos` | admin | Catálogo de tipos de ingreso (un solo nivel) — submenú "Catálogo → Ingresos". Tabla con buscador + filtro + orden, CRUD + activar/desactivar. Cada tipo tiene `palabrasClave` (coma-separadas) que se prueban contra la referencia/concepto del banco antes que las reglas por monto — ver "Clasificación de ingresos" más abajo. |
+| `/referencias` | admin | Catálogo de `catalogoReferenciasBancarias` (qué referencia usa cada casa para pagar) — submenú "Catálogo → Referencias". Buscador (casa o referencia) + filtro por bloque A/B + orden, CRUD manual (además de que se sigue completando solo al resolver pagos en Cargar estado de cuenta). Una misma referencia puede repetirse en más de una casa a propósito (pagan desde la misma cuenta) — no hay unicidad global, solo por (casa, referencia). |
 | `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
 | `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase —, columna Comprobante (subir factura/recibo PDF/JPG/PNG por línea, "Incompleto" hasta subirlo; los débitos automáticos no lo necesitan); no se puede generar el PDF con egresos pendientes de clasificar o sin comprobante —, botón "Generar y publicar PDF" |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
