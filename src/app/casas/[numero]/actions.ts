@@ -25,7 +25,13 @@ async function requireAdmin() {
 }
 
 export type CasaDetalleData = {
-  casa: { id: number; numero: string; bloque: string; propietario: string | null };
+  casa: {
+    id: number;
+    numero: string;
+    bloque: string;
+    propietario: string | null;
+    enConvenio: boolean;
+  };
   usuario: {
     email: string;
     cedula: string | null;
@@ -128,6 +134,7 @@ export async function obtenerDetalleCasa(
       numero: casa.numero,
       bloque: casa.bloque,
       propietario: casa.propietario,
+      enConvenio: casa.enConvenio,
     },
     usuario,
     referencias,
@@ -251,6 +258,16 @@ export async function actualizarPropietario(casaId: number, propietario: string)
     .update(casas)
     .set({ propietario: propietario.trim() || null })
     .where(eq(casas.id, casaId));
+  revalidatePath("/casas");
+}
+
+// Marca/desmarca la casa como "en convenio de pago" (mora con acuerdo con
+// el administrador) — mientras esté marcada, cualquier pago que haga esa
+// casa se clasifica como ingreso "Convenio/Cartera" sin importar el monto
+// (ver src/lib/clasificar-ingreso.ts). Pedido del cliente, reunión 27/ago/2026.
+export async function alternarConvenio(casaId: number, enConvenio: boolean) {
+  await requireAdmin();
+  await db.update(casas).set({ enConvenio }).where(eq(casas.id, casaId));
   revalidatePath("/casas");
 }
 

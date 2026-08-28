@@ -7,6 +7,7 @@ import { FormAgenda } from "./form-agenda";
 import { FormDeuda } from "./form-deuda";
 import { FormPropietario } from "./form-propietario";
 import { FormUsuario } from "./form-usuario";
+import { ToggleConvenio } from "./toggle-convenio";
 
 function KpiCard({
   icon: Icon,
@@ -81,6 +82,8 @@ export function CasaDetalleContent({
           value={`$${saldoPendiente.toFixed(2)}`}
         />
       </div>
+
+      <ToggleConvenio casaId={casa.id} enConvenio={casa.enConvenio} onSaved={onSaved} />
 
       <section className="mt-6 rounded-lg border border-border bg-card px-6 py-5">
         <h2 className="text-sm font-semibold text-foreground">Propietario</h2>

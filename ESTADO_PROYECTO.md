@@ -74,7 +74,9 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   libre, manual), `usuarioId` (nullable, FK a `usuarios.id` — null = sin
   acceso creado). Único por `numero`. La FK vive acá (no en `usuarios`)
   justamente para permitir que un mismo usuario tenga varias casas sin
-  duplicar login.
+  duplicar login. `enConvenio` (boolean, default false, desde ago 2026) =
+  casa en mora con acuerdo de pago manual — ver "Clasificación de ingresos"
+  más abajo.
 - **`usuarios`** — login (email único, `passwordHash` bcrypt, `rol`
   admin/propietario) + los campos de "Agenda" fusionados: `cedula`,
   `telefono`, `telefonoSecundario`, `tipoResidente`
@@ -88,6 +90,11 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   la cola de "sin catalogar".
 - **`tipos_expensa`** — catálogo simple: nombre, descripcion, activo.
   Sembrado con Ordinaria/Extraordinaria/Otros.
+- **`tipos_ingreso`** (desde ago 2026) — catálogo de clasificación de
+  INGRESOS, un solo nivel (a diferencia del de egresos que tiene 3):
+  Expensa/Anticipo/Convenio-Cartera/Tags/Reservas Comunales/Multas/
+  Agua-Basura/Devolución/No identificado. Ver "Clasificación de ingresos"
+  más abajo.
 - **`conceptos_deuda`** — catálogo parametrizado más fino sobre tipos_expensa
   (ej. "Alícuota ordinaria" → tipo Ordinaria, monto_default $60). Se elige un
   concepto al generar una deuda masiva o recurrente; monto/descripción se
@@ -110,15 +117,21 @@ varias casas" abajo para el detalle del último ajuste sobre esos datos.
   "Ingesta automática de egresos" abajo). `claseId` (nullable) = clasificación
   del presupuesto para un débito; `reporteEgresoLineaId` (nullable) marca que
   ese débito ya se usó como línea de egreso de algún informe mensual.
+  `tipoIngresoId` (nullable, desde ago 2026) = clasificación del ingreso para
+  un crédito — ver "Clasificación de ingresos" más abajo.
 - **`cargas_estado_cuenta`** — historial de cada subida del Excel del banco.
 - **`movimiento_candidatos_casa`** — candidatos cuando una referencia
   matchea > 1 casa.
 - **`reportes_financieros`** + **`reporte_ingreso_linea`** +
   **`reporte_egreso_linea`** — informes económicos mensuales (uno por
-  mes/año). Ingresos se sugieren solos (deudas emitidas ese mes por tipo +
-  línea "No identificado"), egresos se cargan a mano por categoría
-  (mantenimiento/operativos/inversiones/otros). Genera PDF con
-  `@react-pdf/renderer`, se sube a Vercel Blob, `pdfUrl` queda guardado.
+  mes/año). Ingresos se sugieren solos agrupando los créditos del banco
+  recibidos ese mes por `tipoIngresoId` (desde ago 2026 — antes se agrupaban
+  las deudas *emitidas* ese mes, no los pagos *recibidos*; ver "Clasificación
+  de ingresos" más abajo), egresos se cargan a mano por clase del catálogo de
+  presupuesto. Genera PDF con `@react-pdf/renderer` (con gráfico de saldo
+  bancario histórico, tabla de ingresos/egresos, y comparativo ingresos vs.
+  egresos de los últimos 3 meses), se sube a Vercel Blob, `pdfUrl` queda
+  guardado.
 
 ## Un usuario puede tener varias casas (desde ago 2026)
 
@@ -145,8 +158,8 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 |---|---|---|
 | `/login` | todos | Login por email + password (Auth.js credentials) |
 | `/` | todos | Dashboard: admin ve un panel de KPIs (saldo pendiente total, % casas al día, cobrado este mes con variación vs mes anterior, cola de revisión bancaria, casas sin acceso) + gráficos Recharts (cobranza mensual facturado/cobrado, donut de estado de casas) + top 8 morosos. Propietario ve una tarjeta por cada casa a su nombre (antes asumía una sola). |
-| `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con buscador + filtros (estado/pago) + columnas ordenables (flechitas) + columna Acciones fija (sticky) para no scrollear, modal de detalle con KPIs (avisa si el usuario también tiene acceso a otras casas), estado de cuenta con filtros |
-| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático de créditos + colas de revisión manual (acordeones); los débitos (egresos reales) se guardan y se autoclasifican por palabra clave, quedan disponibles para el informe del mes que corresponda; sección "Egresos pendientes de clasificar" para clasificarlos ahí mismo sin esperar a crear el informe; buscador + orden en el historial |
+| `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con buscador + filtros (estado/pago) + columnas ordenables (flechitas) + columna Acciones fija (sticky) para no scrollear, modal de detalle con KPIs (avisa si el usuario también tiene acceso a otras casas) + toggle "en convenio de pago", estado de cuenta con filtros |
+| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático de créditos + colas de revisión manual (acordeones); los créditos matcheados se clasifican solos por tipo de ingreso (Expensa/Anticipo/Convenio-Cartera/etc.), sección "Ingresos pendientes de clasificar" para los que no matchearon ninguna regla; los débitos (egresos reales) se guardan y se autoclasifican por palabra clave, quedan disponibles para el informe del mes que corresponda; sección "Egresos pendientes de clasificar" para clasificarlos ahí mismo sin esperar a crear el informe; buscador + orden en el historial |
 | `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
@@ -385,6 +398,73 @@ ambas rotuladas "Monto" (en vez de sus nombres reales) — como el parser no
 lee esas dos columnas, se relajó la validación del encabezado para exigir
 solo las columnas que sí se usan (`INDICES_VALIDADOS` en
 `src/lib/parse-bank-excel.ts`), no las 14 completas.
+
+## Clasificación de ingresos + convenio de pago (desde ago 2026)
+
+En la reunión del 27/ago/2026 (sponsor + Christian), quedó claro que además
+de los egresos, los INGRESOS (créditos del banco) también necesitan una
+clasificación por tipo para poder armar el informe — igual que ya usa
+Christian a mano en su Excel (pestañas "Deudas"/"Transacciones"). A
+diferencia del catálogo de egresos (3 niveles), acá es **un solo nivel**
+("aquí solo hay un tipo, no hay tipo subtipo, nada, aquí solo hay de qué
+pertenece" — palabras textuales de Christian).
+
+Catálogo `tiposIngreso` (migración `0012`): Expensa, Anticipo,
+Convenio/Cartera, Tags, Reservas Comunales, Multas, Agua/Basura, Devolución,
+No identificado.
+
+Reglas de autoclasificación (`src/lib/clasificar-ingreso.ts`,
+`clasificarIngresoAutomatico`) — cubren los 3 casos que Christian dijo que
+"no hace falta redireccionar":
+
+1. **Casa marcada `enConvenio`** (nuevo flag en `casas`, toggle en el modal
+   de detalle de casa) → siempre "Convenio/Cartera", pague lo que pague. Es
+   para casas en mora con un acuerdo de pago manual con el administrador
+   ("algunas pagan 80, otras pagan 150... como ya la tenemos marcada,
+   directamente ese pago va a convenio y cartera").
+2. Paga exactamente el saldo pendiente que tenía la casa antes de este pago
+   (Σ deudas − Σ abonos previos) → "Expensa".
+3. Paga más de lo que debía → "Anticipo".
+4. Cualquier otro caso (pago parcial sin convenio, o algo ambiguo como
+   Tags/Reservas Comunales/Multas/Agua-Basura/Devolución — Christian mismo
+   dijo que ahí "nos confundimos") queda **sin clasificar**: el admin lo
+   resuelve a mano desde una cola nueva en `/cargar` ("Ingresos pendientes
+   de clasificar"), igual que ya pasa con los egresos que no matchean
+   ninguna palabra clave. Deliberadamente NO se intentó automatizar más
+   allá de esto — el cliente dijo explícitamente "no te rompas tanto la
+   cabeza que todo salga automático al principio".
+
+Cuándo se dispara la clasificación:
+
+- Al cargar el Excel del banco: créditos que matchean 1 sola casa se
+  clasifican en el momento (`procesarMovimientosBancarios`); los que quedan
+  en las colas "pendiente_revision"/"sin_catalogar" arrancan como "No
+  identificado" (no tienen casa todavía, así que ninguna regla puede
+  aplicar) y se reclasifican solos en cuanto se les asigna una casa
+  (`asignarCandidato`/`asignarManual` en `src/app/cargar/pendientes-actions.ts`).
+- Créditos que ya estaban `matched` de antes de esta migración quedan con
+  `tipoIngresoId = null` (no se reconstruyó el historial) — van a aparecer
+  en la cola de pendientes de clasificar la primera vez que se abra
+  `/cargar` después de correr la `0012` en producción.
+
+`sugerirLineasIngreso` (en `src/lib/reporte-financiero.ts`) se reescribió
+para agrupar por este catálogo en vez de por `tiposExpensa`: antes sumaba
+las DEUDAS *emitidas* ese mes (un proxy que no siempre coincidía con la
+plata *recibida* ese mes); ahora suma los CRÉDITOS del banco recibidos ese
+mes agrupados por `tipoIngresoId`, con un bucket "Pendiente de clasificar"
+para los que todavía no se resolvieron (para que el total del informe siga
+cuadrando contra el estado de cuenta real). Mismo límite ya documentado
+para los egresos: es una sugerencia al crear el borrador, no un sync
+continuo.
+
+De paso, en la misma sesión se extendió el gráfico "Estadística" del PDF
+del informe (`generarPdfReporte` en `src/app/reportes/actions.ts`) de 2 a
+**3 meses** (incluido el actual), como en el ejemplo que mostró Christian
+en la reunión (mayo/junio/julio) — el resto del diseño del PDF (Bancos
+histórico, tabla Ingresos, tabla Egresos agrupada, tabla Pagos con
+#casas pagaron/mora) ya estaba construido de una sesión anterior y
+resultó calzar bastante bien con lo que Christian arma a mano ("ya me
+queda claro, igualito yo", dijo él mismo viendo la demo en la llamada).
 
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 

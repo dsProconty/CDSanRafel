@@ -41,6 +41,12 @@ export const casas = pgTable(
     bloque: text("bloque").notNull(), // "A" | "B" (derivado del número)
     propietario: text("propietario"), // se completa manualmente, no viene en CASAS.xlsx
     usuarioId: integer("usuario_id").references(() => usuarios.id), // null = sin acceso creado
+    // Casa en mora con un acuerdo de pago manual con el administrador (pedido
+    // del cliente ago 2026): mientras esté marcada, CUALQUIER pago que haga
+    // esa casa se clasifica como ingreso "Convenio/Cartera" sin importar el
+    // monto, en vez de aplicar las reglas automáticas normales (ver
+    // `clasificarIngresoAutomatico` en src/lib/clasificar-ingreso.ts).
+    enConvenio: boolean("en_convenio").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("casas_numero_idx").on(table.numero)]
@@ -154,6 +160,23 @@ export const presupuestoClase = pgTable(
   (table) => [
     uniqueIndex("presupuesto_clase_subtipo_nombre_idx").on(table.subtipoId, table.nombre),
   ]
+);
+
+// Catálogo de clasificación de INGRESOS (un solo nivel, a diferencia del
+// catálogo de egresos que tiene 3 — pedido explícito del cliente en la
+// reunión del 27/ago/2026: "aquí solo hay un tipo, no hay tipo subtipo,
+// nada, aquí solo hay de qué pertenece"). Ver `movimientosBancarios.
+// tipoIngresoId` y `src/lib/clasificar-ingreso.ts` para las reglas de
+// autoclasificación.
+export const tiposIngreso = pgTable(
+  "tipos_ingreso",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    descripcion: text("descripcion"),
+    activo: boolean("activo").notNull().default(true),
+  },
+  (table) => [uniqueIndex("tipos_ingreso_nombre_idx").on(table.nombre)]
 );
 
 // Catálogo de conceptos de deuda parametrizados por el admin de antemano
@@ -281,6 +304,11 @@ export const movimientosBancarios = pgTable(
     agencia: text("agencia"),
     casaId: integer("casa_id").references(() => casas.id),
     claseId: integer("clase_id").references(() => presupuestoClase.id),
+    // Clasificación de INGRESO (créditos): null = matched pero sin regla
+    // automática que aplique — el admin lo clasifica a mano desde /cargar.
+    // Se asigna "No identificado" solo (sin casa) al cargar; al asignarle
+    // casa se recalcula con `clasificarIngresoAutomatico`.
+    tipoIngresoId: integer("tipo_ingreso_id").references(() => tiposIngreso.id),
     reporteEgresoLineaId: integer("reporte_egreso_linea_id").references(
       () => reporteEgresoLinea.id
     ),

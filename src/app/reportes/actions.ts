@@ -490,6 +490,7 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
     .orderBy(asc(reportesFinancieros.anio), asc(reportesFinancieros.mes));
 
   const historico: { etiqueta: string; saldoFinal: number }[] = [];
+  const comparativo: { etiqueta: string; ingresos: number; egresos: number }[] = [];
   for (const r of todos) {
     if (r.mes === detalle.mes && r.anio === detalle.anio) break;
     const [ingresos, egresos] = await Promise.all([
@@ -498,38 +499,21 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
     ]);
     const tt = totales(ingresos, egresos, r.saldoInicial);
     historico.push({ etiqueta: `1-${NOMBRES_MES[r.mes - 1].slice(0, 3).toLowerCase()}`, saldoFinal: tt.saldoFinal });
+    comparativo.push({ etiqueta: NOMBRES_MES[r.mes - 1], ingresos: tt.totalIngresos, egresos: tt.totalEgresos });
   }
   historico.push({
     etiqueta: `1-${NOMBRES_MES[detalle.mes - 1].slice(0, 3).toLowerCase()}`,
     saldoFinal: t.saldoFinal,
   });
-  const ultimos4 = historico.slice(-4);
-
-  // Mes anterior, para el gráfico comparativo "Estadística".
-  const mesAnterior = detalle.mes === 1 ? 12 : detalle.mes - 1;
-  const anioAnterior = detalle.mes === 1 ? detalle.anio - 1 : detalle.anio;
-  const [anterior] = await db
-    .select({ id: reportesFinancieros.id, saldoInicial: reportesFinancieros.saldoInicial })
-    .from(reportesFinancieros)
-    .where(and(eq(reportesFinancieros.mes, mesAnterior), eq(reportesFinancieros.anio, anioAnterior)));
-  let comparativo: { etiqueta: string; ingresos: number; egresos: number }[] = [];
-  if (anterior) {
-    const [ingresos, egresos] = await Promise.all([
-      db.select({ monto: reporteIngresoLinea.monto }).from(reporteIngresoLinea).where(eq(reporteIngresoLinea.reporteId, anterior.id)),
-      db.select({ monto: reporteEgresoLinea.monto }).from(reporteEgresoLinea).where(eq(reporteEgresoLinea.reporteId, anterior.id)),
-    ]);
-    const tt = totales(ingresos, egresos, anterior.saldoInicial);
-    comparativo.push({
-      etiqueta: NOMBRES_MES[mesAnterior - 1],
-      ingresos: tt.totalIngresos,
-      egresos: tt.totalEgresos,
-    });
-  }
   comparativo.push({
     etiqueta: NOMBRES_MES[detalle.mes - 1],
     ingresos: t.totalIngresos,
     egresos: t.totalEgresos,
   });
+  const ultimos4 = historico.slice(-4);
+  // Últimos 3 meses (incluido el actual) para el gráfico "Estadística",
+  // como en el Excel del cliente (ej. mayo/junio/julio).
+  const ultimosComparativo = comparativo.slice(-3);
 
   const pdfBuffer = await renderReportePdf({
     mes: detalle.mes,
@@ -548,7 +532,7 @@ export async function generarPdfReporte(id: number): Promise<GenerarPdfResultado
       monto: Number(l.monto),
     })),
     historicoSaldo: ultimos4,
-    comparativoMeses: comparativo,
+    comparativoMeses: ultimosComparativo,
   });
 
   const nombreArchivo = `reportes/${detalle.anio}-${String(detalle.mes).padStart(2, "0")}-informe-economico.pdf`;

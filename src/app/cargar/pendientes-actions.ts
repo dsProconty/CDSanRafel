@@ -11,6 +11,7 @@ import {
   movimientoCandidatosCasa,
   movimientosBancarios,
 } from "@/db/schema";
+import { clasificarIngresoAutomatico } from "@/lib/clasificar-ingreso";
 
 async function requireAdmin() {
   const session = await auth();
@@ -25,10 +26,19 @@ async function requireAdmin() {
 export async function asignarCandidato(movimientoId: number, casaId: number) {
   await requireAdmin();
 
+  const [movimiento] = await db
+    .select({ monto: movimientosBancarios.monto })
+    .from(movimientosBancarios)
+    .where(eq(movimientosBancarios.id, movimientoId))
+    .limit(1);
+  const tipoIngresoId = movimiento
+    ? await clasificarIngresoAutomatico(casaId, Number(movimiento.monto), movimientoId)
+    : null;
+
   await db.batch([
     db
       .update(movimientosBancarios)
-      .set({ casaId, estado: "matched" })
+      .set({ casaId, estado: "matched", tipoIngresoId })
       .where(eq(movimientosBancarios.id, movimientoId)),
     db
       .delete(movimientoCandidatosCasa)
@@ -60,7 +70,7 @@ export async function asignarManual(
   }
 
   const [movimiento] = await db
-    .select({ referenciaCruda: movimientosBancarios.referenciaCruda })
+    .select({ referenciaCruda: movimientosBancarios.referenciaCruda, monto: movimientosBancarios.monto })
     .from(movimientosBancarios)
     .where(eq(movimientosBancarios.id, movimientoId))
     .limit(1);
@@ -69,10 +79,12 @@ export async function asignarManual(
     return { ok: false, error: "El movimiento ya no existe." };
   }
 
+  const tipoIngresoId = await clasificarIngresoAutomatico(casa.id, Number(movimiento.monto), movimientoId);
+
   await db.batch([
     db
       .update(movimientosBancarios)
-      .set({ casaId: casa.id, estado: "matched" })
+      .set({ casaId: casa.id, estado: "matched", tipoIngresoId })
       .where(eq(movimientosBancarios.id, movimientoId)),
     db
       .insert(catalogoReferenciasBancarias)
@@ -101,6 +113,21 @@ export async function clasificarMovimientoDebito(
   await db
     .update(movimientosBancarios)
     .set({ claseId })
+    .where(eq(movimientosBancarios.id, movimientoId));
+  revalidatePath("/cargar");
+}
+
+// Clasificación manual de un ingreso que quedó "matched" pero sin regla
+// automática que aplicara (pago parcial sin convenio, o directamente un
+// tipo ambiguo como Tags/Reservas Comunales/Multas/Agua-Basura/Devolución).
+export async function clasificarMovimientoIngreso(
+  movimientoId: number,
+  tipoIngresoId: number | null
+) {
+  await requireAdmin();
+  await db
+    .update(movimientosBancarios)
+    .set({ tipoIngresoId })
     .where(eq(movimientosBancarios.id, movimientoId));
   revalidatePath("/cargar");
 }

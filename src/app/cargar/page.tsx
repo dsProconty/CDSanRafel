@@ -8,6 +8,7 @@ import {
   casas,
   movimientoCandidatosCasa,
   movimientosBancarios,
+  tiposIngreso,
   usuarios,
 } from "@/db/schema";
 import { ChevronDown } from "lucide-react";
@@ -21,6 +22,7 @@ import { BotonCandidato } from "./boton-candidato";
 import { FormAsignarManual } from "./form-asignar-manual";
 import { HistorialCargas, type FilaHistorial } from "./historial-cargas";
 import { SelectorClaseDebito } from "./selector-clase-debito";
+import { SelectorTipoIngreso } from "./selector-tipo-ingreso";
 import { UploadForm } from "./upload-form";
 
 export default async function CargarPage() {
@@ -102,7 +104,7 @@ export default async function CargarPage() {
     .orderBy(desc(movimientosBancarios.fechaTransaccion));
 
   const todasLasCasas = await db
-    .select({ numero: casas.numero })
+    .select({ id: casas.id, numero: casas.numero })
     .from(casas)
     .orderBy(casas.numero);
 
@@ -121,6 +123,24 @@ export default async function CargarPage() {
 
   const presupuesto = await obtenerPresupuesto();
   const opcionesClase = construirOpcionesClase(presupuesto);
+
+  // Ingresos ya asignados a una casa (matched) pero que no matchearon
+  // ninguna regla automática (ver src/lib/clasificar-ingreso.ts) — pago
+  // parcial sin convenio, o un tipo ambiguo (Tags/Reservas Comunales/
+  // Multas/Agua-Basura/Devolución) que el admin tiene que elegir a mano.
+  const ingresosPendientes = await db
+    .select()
+    .from(movimientosBancarios)
+    .where(and(eq(movimientosBancarios.estado, "matched"), isNull(movimientosBancarios.tipoIngresoId)))
+    .orderBy(desc(movimientosBancarios.fechaTransaccion));
+
+  const opcionesTipoIngreso = await db
+    .select({ id: tiposIngreso.id, nombre: tiposIngreso.nombre })
+    .from(tiposIngreso)
+    .where(eq(tiposIngreso.activo, true))
+    .orderBy(tiposIngreso.nombre);
+
+  const numeroDeCasaId = new Map(todasLasCasas.map((c) => [c.id, c.numero]));
 
   return (
     <AppShell>
@@ -272,6 +292,70 @@ export default async function CargarPage() {
                   </p>
                   <div className="mt-3">
                     <FormAsignarManual movimientoId={mov.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </details>
+
+        <section className="mt-10">
+          <h2 className="text-base font-semibold text-foreground">
+            Ingresos pendientes de clasificar
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pagos ya asignados a una casa que no matchearon ninguna regla
+            automática (Expensa, Anticipo o Convenio/Cartera) — puede ser un
+            pago parcial, un Tag, una reserva comunal, una multa, agua/basura
+            o una devolución. Elegí el tipo que corresponda.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatPill
+              label="pendientes de clasificar"
+              value={ingresosPendientes.length}
+              color="warning"
+            />
+          </div>
+        </section>
+
+        <details
+          className="group mt-4 rounded-lg border border-border bg-card"
+          open={ingresosPendientes.length > 0 ? true : undefined}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Sin clasificar ({ingresosPendientes.length})
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elegí a qué tipo de ingreso corresponde cada pago.
+              </p>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+
+          {ingresosPendientes.length === 0 ? (
+            <p className="border-t border-border px-6 py-4 text-sm text-muted-foreground">
+              Sin pendientes.
+            </p>
+          ) : (
+            <div className="divide-y divide-border border-t border-border">
+              {ingresosPendientes.map((mov) => (
+                <div key={mov.id} className="px-6 py-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-lg font-semibold text-foreground">
+                      ${Number(mov.monto).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {mov.fechaTransaccion} · doc. {mov.documento}
+                      {mov.casaId ? ` · Casa ${numeroDeCasaId.get(mov.casaId) ?? mov.casaId}` : ""}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {mov.referenciaCruda}
+                  </p>
+                  <div className="mt-3">
+                    <SelectorTipoIngreso movimientoId={mov.id} opciones={opcionesTipoIngreso} />
                   </div>
                 </div>
               ))}

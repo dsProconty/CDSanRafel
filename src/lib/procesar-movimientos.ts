@@ -7,6 +7,7 @@ import {
   movimientosBancarios,
 } from "@/db/schema";
 import { intentarAutoclasificarEgreso } from "./clasificar-egreso";
+import { clasificarIngresoAutomatico, idTipoIngresoNoIdentificado } from "./clasificar-ingreso";
 import type { FilaBanco } from "./parse-bank-excel";
 
 export type ResumenCarga = {
@@ -99,31 +100,39 @@ export async function procesarMovimientosBancarios(
   let pendienteRevision = 0;
   let sinCatalogar = 0;
 
-  const creditosParaInsertar = nuevosCreditos.map((fila) => {
-    const candidatos = candidatosPorReferencia.get(fila.referencia) ?? [];
-    let estado: "matched" | "pendiente_revision" | "sin_catalogar";
-    let casaId: number | null = null;
+  const idNoIdentificado = await idTipoIngresoNoIdentificado();
 
-    if (candidatos.length === 1) {
-      estado = "matched";
-      casaId = candidatos[0];
-      matchedAutomatico++;
-    } else if (candidatos.length > 1) {
-      estado = "pendiente_revision";
-      pendienteRevision++;
-    } else {
-      estado = "sin_catalogar";
-      sinCatalogar++;
-    }
+  const creditosParaInsertar = await Promise.all(
+    nuevosCreditos.map(async (fila) => {
+      const candidatos = candidatosPorReferencia.get(fila.referencia) ?? [];
+      let estado: "matched" | "pendiente_revision" | "sin_catalogar";
+      let casaId: number | null = null;
+      let tipoIngresoId: number | null = null;
 
-    return { fila, estado, casaId, candidatos };
-  });
+      if (candidatos.length === 1) {
+        estado = "matched";
+        casaId = candidatos[0];
+        matchedAutomatico++;
+        tipoIngresoId = await clasificarIngresoAutomatico(casaId, fila.monto);
+      } else if (candidatos.length > 1) {
+        estado = "pendiente_revision";
+        pendienteRevision++;
+        tipoIngresoId = idNoIdentificado;
+      } else {
+        estado = "sin_catalogar";
+        sinCatalogar++;
+        tipoIngresoId = idNoIdentificado;
+      }
+
+      return { fila, estado, casaId, candidatos, tipoIngresoId };
+    })
+  );
 
   const creditosInsertados = creditosParaInsertar.length
     ? await db
         .insert(movimientosBancarios)
         .values(
-          creditosParaInsertar.map(({ fila, estado, casaId }) => ({
+          creditosParaInsertar.map(({ fila, estado, casaId, tipoIngresoId }) => ({
             documento: fila.documento,
             fechaTransaccion: fila.fechaTransaccion,
             fechaContable: fila.fechaContable || null,
@@ -134,6 +143,7 @@ export async function procesarMovimientosBancarios(
             concepto: fila.concepto || null,
             agencia: fila.agencia || null,
             casaId,
+            tipoIngresoId,
             estado,
           }))
         )
