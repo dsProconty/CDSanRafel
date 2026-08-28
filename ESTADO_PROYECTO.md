@@ -146,7 +146,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/login` | todos | Login por email + password (Auth.js credentials) |
 | `/` | todos | Dashboard: admin ve un panel de KPIs (saldo pendiente total, % casas al día, cobrado este mes con variación vs mes anterior, cola de revisión bancaria, casas sin acceso) + gráficos Recharts (cobranza mensual facturado/cobrado, donut de estado de casas) + top 8 morosos. Propietario ve una tarjeta por cada casa a su nombre (antes asumía una sola). |
 | `/casas` | admin | Casas + Usuarios + Agenda unificados, tabla con buscador + filtros (estado/pago) + columnas ordenables (flechitas) + columna Acciones fija (sticky) para no scrollear, modal de detalle con KPIs (avisa si el usuario también tiene acceso a otras casas), estado de cuenta con filtros |
-| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático de créditos + colas de revisión manual (acordeones); los débitos (egresos reales) se guardan y se autoclasifican por palabra clave, quedan disponibles para el informe del mes que corresponda; buscador + orden en el historial |
+| `/cargar` | admin | Subir Excel del banco → parseo → dedupe → matching automático de créditos + colas de revisión manual (acordeones); los débitos (egresos reales) se guardan y se autoclasifican por palabra clave, quedan disponibles para el informe del mes que corresponda; sección "Egresos pendientes de clasificar" para clasificarlos ahí mismo sin esperar a crear el informe; buscador + orden en el historial |
 | `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
@@ -309,6 +309,35 @@ descripción compartidas con el editor manual de informes):
   Agua potable, `eee quito`/`empresa electrica` a Energía eléctrica — el
   cliente las agrega él mismo desde la UI, no requiere otra migración.
 
+### Cola de "egresos pendientes de clasificar" en `/cargar`
+
+Los débitos autoclasificados o pendientes quedaban invisibles hasta crear el
+informe económico del mes (recién ahí `crearBorradorReporte` los trae). Se
+agregó una sección en `/cargar` (debajo de "Sin catalogar") que muestra los
+`movimientos_bancarios` con `estado = "debito"` y `reporteEgresoLineaId`
+null, separados en dos contadores: "pendientes de clasificar" (acordeón con
+un `<select>` por fila para asignar tipo/subtipo/clase ahí mismo, sin
+esperar a crear el informe) y "autoclasificados, esperando el informe del
+mes" (solo contador). Se extrajo `construirOpcionesClase` (antes vivía
+adentro de `editor-reporte.tsx`) a `src/lib/opciones-clase.ts` para
+reusarla acá sin arrastrar código de servidor (`db`) al bundle del cliente —
+ese archivo solo importa el *type* `PresupuestoTree`, nunca el valor.
+
+### Gotcha: el Excel puede tener varias pestañas y nombres/columnas variables
+
+El cliente pasó un "Estado de Cuenta" armado a mano con 5 pestañas
+(`Validación`, `general`, `transacciones`, `casas`, `Diferencias Valor`) y
+`parseBankExcel` siempre leía `workbook.SheetNames[0]` — como la primera
+pestaña era "Validación" (un resumen, no los movimientos), tiraba "El
+formato del Excel del banco cambió" aunque la hoja real ("general") tuviera
+el formato correcto. Se corrigió para buscar el encabezado esperado en
+TODAS las pestañas, no solo la primera ni asumiendo que se llama "general".
+De paso se encontró que esa misma hoja traía "Saldo efectivo"/"Saldo total"
+ambas rotuladas "Monto" (en vez de sus nombres reales) — como el parser no
+lee esas dos columnas, se relajó la validación del encabezado para exigir
+solo las columnas que sí se usan (`INDICES_VALIDADOS` en
+`src/lib/parse-bank-excel.ts`), no las 14 completas.
+
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 
 - **No hay cron para la carga del Excel del banco** (seguía siendo manual,
@@ -329,11 +358,15 @@ descripción compartidas con el editor manual de informes):
 
 ## Convenciones de git en este repo (para la sesión nueva)
 
-- Rama de trabajo actual: `claude/migracion-usuario-correo-casas-h1x6hx`
-  (a pesar del nombre, terminó siendo la rama de todo el trabajo de esta
-  sesión: migración real de usuarios/casas, buscadores/filtros/orden en
-  las tablas, dashboard de KPIs, y el cambio a "un usuario puede tener
-  varias casas").
+- Rama de trabajo de la sesión anterior: `claude/migracion-usuario-correo-casas-h1x6hx`
+  (migración real de usuarios/casas, buscadores/filtros/orden en las tablas,
+  dashboard de KPIs, y el cambio a "un usuario puede tener varias casas").
+  Rama de esta sesión: `claude/modulo-egresos-config-qnho36` (a pesar del
+  nombre, terminó siendo todo el módulo de egresos: catálogo de presupuesto
+  en 3 niveles, clasificación pendiente/autoclasificación, ingesta de
+  débitos desde el Excel del banco, y la cola de pendientes en `/cargar`).
+  Cada sesión nueva arranca en su propia rama — esto es solo referencia
+  histórica, no algo para reusar a mano.
 - **Cambio de convención (ago 2026): el usuario pidió explícitamente
   "subilo a main siempre, así es como yo pruebo".** A diferencia de antes
   (donde había que esperar el pedido "sube a main" en cada ocasión), ahora
