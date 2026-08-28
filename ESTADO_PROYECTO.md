@@ -164,6 +164,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/deudas/masiva` | admin | Selector "Aplicación única" / "Recurrente-cuotas". Elegís un concepto, fecha, excluís casas puntuales. Historial de corridas con botón Anular, buscador + filtro por estado + orden. |
 | `/deudas/conceptos` | admin | Catálogo de conceptos de deuda (CRUD) — en el menú aparece como submenú "Catálogo → Deudas". Buscador + filtros + orden. |
 | `/egresos/categorias` | admin | Catálogo de presupuesto en 3 niveles (Tipo → Subtipo → Clase) para clasificar egresos — submenú "Catálogo → Egresos". 3 columnas tipo Miller (click en un Tipo muestra sus Subtipos, click en un Subtipo muestra sus Clases), CRUD + activar/desactivar en cada nivel. La Clase tiene `palabrasClave` (coma-separadas) para autoclasificación. |
+| `/ingresos/tipos` | admin | Catálogo de tipos de ingreso (un solo nivel) — submenú "Catálogo → Ingresos". Tabla con buscador + filtro + orden, CRUD + activar/desactivar. Cada tipo tiene `palabrasClave` (coma-separadas) que se prueban contra la referencia/concepto del banco antes que las reglas por monto — ver "Clasificación de ingresos" más abajo. |
 | `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
 | `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase —, columna Comprobante (subir factura/recibo PDF/JPG/PNG por línea, "Incompleto" hasta subirlo; los débitos automáticos no lo necesitan); no se puede generar el PDF con egresos pendientes de clasificar o sin comprobante —, botón "Generar y publicar PDF" |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
@@ -410,30 +411,38 @@ diferencia del catálogo de egresos (3 niveles), acá es **un solo nivel**
 ("aquí solo hay un tipo, no hay tipo subtipo, nada, aquí solo hay de qué
 pertenece" — palabras textuales de Christian).
 
-Catálogo `tiposIngreso` (migración `0012`): Expensa, Anticipo,
+Catálogo `tiposIngreso` (migración `0012`, con CRUD propio desde ago 2026
+en `/ingresos/tipos` — submenú "Catálogo → Ingresos"): Expensa, Anticipo,
 Convenio/Cartera, Tags, Reservas Comunales, Multas, Agua/Basura, Devolución,
 No identificado.
 
 Reglas de autoclasificación (`src/lib/clasificar-ingreso.ts`,
-`clasificarIngresoAutomatico`) — cubren los 3 casos que Christian dijo que
+`clasificarIngresoAutomatico`) — cubren los casos que Christian dijo que
 "no hace falta redireccionar":
 
-1. **Casa marcada `enConvenio`** (nuevo flag en `casas`, toggle en el modal
-   de detalle de casa) → siempre "Convenio/Cartera", pague lo que pague. Es
+1. **Casa marcada `enConvenio`** (flag en `casas`, toggle en el modal de
+   detalle de casa) → siempre "Convenio/Cartera", pague lo que pague. Es
    para casas en mora con un acuerdo de pago manual con el administrador
    ("algunas pagan 80, otras pagan 150... como ya la tenemos marcada,
    directamente ese pago va a convenio y cartera").
-2. Paga exactamente el saldo pendiente que tenía la casa antes de este pago
+2. **Palabra clave** (`tiposIngreso.palabrasClave`, migración `0014`,
+   mismo mecanismo que ya existía para egresos): si la referencia/
+   referencia2/referencia3/concepto del banco contiene alguna palabra
+   clave, se asigna ese tipo — se prueba ANTES que las reglas por monto
+   porque es más confiable cuando está presente. Sembrado con un solo
+   caso real que mencionó el cliente: "tag" → Tags ("todos los que digan
+   tag son tags"). El resto de palabras clave las agrega el admin desde
+   `/ingresos/tipos` a medida que las descubre.
+3. Paga exactamente el saldo pendiente que tenía la casa antes de este pago
    (Σ deudas − Σ abonos previos) → "Expensa".
-3. Paga más de lo que debía → "Anticipo".
-4. Cualquier otro caso (pago parcial sin convenio, o algo ambiguo como
-   Tags/Reservas Comunales/Multas/Agua-Basura/Devolución — Christian mismo
-   dijo que ahí "nos confundimos") queda **sin clasificar**: el admin lo
-   resuelve a mano desde una cola nueva en `/cargar` ("Ingresos pendientes
-   de clasificar"), igual que ya pasa con los egresos que no matchean
-   ninguna palabra clave. Deliberadamente NO se intentó automatizar más
-   allá de esto — el cliente dijo explícitamente "no te rompas tanto la
-   cabeza que todo salga automático al principio".
+4. Paga más de lo que debía → "Anticipo".
+5. Cualquier otro caso (pago parcial sin convenio, o algo ambiguo sin
+   palabra clave — Christian mismo dijo que ahí "nos confundimos") queda
+   **sin clasificar**: el admin lo resuelve a mano desde una cola nueva en
+   `/cargar` ("Ingresos pendientes de clasificar"), igual que ya pasa con
+   los egresos que no matchean ninguna palabra clave. Deliberadamente NO
+   se intentó automatizar más allá de esto — el cliente dijo explícitamente
+   "no te rompas tanto la cabeza que todo salga automático al principio".
 
 Cuándo se dispara la clasificación:
 

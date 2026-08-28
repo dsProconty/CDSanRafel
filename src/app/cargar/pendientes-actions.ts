@@ -11,7 +11,7 @@ import {
   movimientoCandidatosCasa,
   movimientosBancarios,
 } from "@/db/schema";
-import { clasificarIngresoAutomatico } from "@/lib/clasificar-ingreso";
+import { clasificarIngresoAutomatico, textoBusquedaIngreso } from "@/lib/clasificar-ingreso";
 
 async function requireAdmin() {
   const session = await auth();
@@ -27,12 +27,28 @@ export async function asignarCandidato(movimientoId: number, casaId: number) {
   await requireAdmin();
 
   const [movimiento] = await db
-    .select({ monto: movimientosBancarios.monto })
+    .select({
+      monto: movimientosBancarios.monto,
+      referenciaCruda: movimientosBancarios.referenciaCruda,
+      referencia2: movimientosBancarios.referencia2,
+      referencia3: movimientosBancarios.referencia3,
+      concepto: movimientosBancarios.concepto,
+    })
     .from(movimientosBancarios)
     .where(eq(movimientosBancarios.id, movimientoId))
     .limit(1);
   const tipoIngresoId = movimiento
-    ? await clasificarIngresoAutomatico(casaId, Number(movimiento.monto), movimientoId)
+    ? await clasificarIngresoAutomatico(
+        casaId,
+        Number(movimiento.monto),
+        textoBusquedaIngreso({
+          referencia: movimiento.referenciaCruda,
+          referencia2: movimiento.referencia2,
+          referencia3: movimiento.referencia3,
+          concepto: movimiento.concepto,
+        }),
+        movimientoId
+      )
     : null;
 
   await db.batch([
@@ -70,7 +86,13 @@ export async function asignarManual(
   }
 
   const [movimiento] = await db
-    .select({ referenciaCruda: movimientosBancarios.referenciaCruda, monto: movimientosBancarios.monto })
+    .select({
+      referenciaCruda: movimientosBancarios.referenciaCruda,
+      referencia2: movimientosBancarios.referencia2,
+      referencia3: movimientosBancarios.referencia3,
+      concepto: movimientosBancarios.concepto,
+      monto: movimientosBancarios.monto,
+    })
     .from(movimientosBancarios)
     .where(eq(movimientosBancarios.id, movimientoId))
     .limit(1);
@@ -79,7 +101,17 @@ export async function asignarManual(
     return { ok: false, error: "El movimiento ya no existe." };
   }
 
-  const tipoIngresoId = await clasificarIngresoAutomatico(casa.id, Number(movimiento.monto), movimientoId);
+  const tipoIngresoId = await clasificarIngresoAutomatico(
+    casa.id,
+    Number(movimiento.monto),
+    textoBusquedaIngreso({
+      referencia: movimiento.referenciaCruda,
+      referencia2: movimiento.referencia2,
+      referencia3: movimiento.referencia3,
+      concepto: movimiento.concepto,
+    }),
+    movimientoId
+  );
 
   await db.batch([
     db

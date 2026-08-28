@@ -27,6 +27,7 @@ const NAV_ADMIN: SidebarNavItem[] = [
     children: [
       { href: "/deudas/conceptos", label: "Deudas" },
       { href: "/egresos/categorias", label: "Egresos" },
+      { href: "/ingresos/tipos", label: "Ingresos" },
     ],
   },
   {

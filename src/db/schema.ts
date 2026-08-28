@@ -168,12 +168,18 @@ export const presupuestoClase = pgTable(
 // nada, aquí solo hay de qué pertenece"). Ver `movimientosBancarios.
 // tipoIngresoId` y `src/lib/clasificar-ingreso.ts` para las reglas de
 // autoclasificación.
+// `palabrasClave` (desde ago 2026): lista separada por comas para
+// autoclasificar por texto (referencia/referencia2/referencia3/concepto del
+// movimiento bancario) antes de aplicar las reglas por monto — ej. "tag"
+// para que cualquier pago cuya referencia diga "tag" se clasifique solo
+// como Tags, como pidió el cliente ("todos los que digan tag son tags").
 export const tiposIngreso = pgTable(
   "tipos_ingreso",
   {
     id: serial("id").primaryKey(),
     nombre: text("nombre").notNull(),
     descripcion: text("descripcion"),
+    palabrasClave: text("palabras_clave"),
     activo: boolean("activo").notNull().default(true),
   },
   (table) => [uniqueIndex("tipos_ingreso_nombre_idx").on(table.nombre)]

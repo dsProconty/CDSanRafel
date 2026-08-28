@@ -7,7 +7,11 @@ import {
   movimientosBancarios,
 } from "@/db/schema";
 import { intentarAutoclasificarEgreso } from "./clasificar-egreso";
-import { clasificarIngresoAutomatico, idTipoIngresoNoIdentificado } from "./clasificar-ingreso";
+import {
+  clasificarIngresoAutomatico,
+  idTipoIngresoNoIdentificado,
+  textoBusquedaIngreso,
+} from "./clasificar-ingreso";
 import type { FilaBanco } from "./parse-bank-excel";
 
 export type ResumenCarga = {
@@ -113,7 +117,11 @@ export async function procesarMovimientosBancarios(
         estado = "matched";
         casaId = candidatos[0];
         matchedAutomatico++;
-        tipoIngresoId = await clasificarIngresoAutomatico(casaId, fila.monto);
+        tipoIngresoId = await clasificarIngresoAutomatico(
+          casaId,
+          fila.monto,
+          textoBusquedaIngreso(fila)
+        );
       } else if (candidatos.length > 1) {
         estado = "pendiente_revision";
         pendienteRevision++;
