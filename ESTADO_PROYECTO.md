@@ -450,6 +450,23 @@ en común (Suministros y consumibles varios, Remodelación de áreas
 comunales) — esos siguen "pendiente de clasificar" hasta que el admin
 los complete a mano si encuentra un patrón.
 
+**Gotcha encontrado al aplicar esta migración (sep 2026)**: entre que se
+escribió la `0015` y se corrió en Neon, el admin ya había editado a mano
+"Honorarios de Administrador" desde `/egresos/categorias`
+(`administracion, administración`) y "Servicio de seguridad privada`
+(`seguridad`, coincidencia con lo que proponía la migración). La versión
+original de la `0015` pisaba el valor directo (`SET palabras_clave =
+'honorario'`), lo que hubiera borrado esa edición manual sin avisar. Se
+corrigió el archivo (nunca había llegado a correrse en producción, así que
+no hay drift que reconciliar) para que cada `UPDATE` sea aditivo e
+idempotente: si ya está vacío lo setea directo, si ya contiene la palabra
+no la duplica, si no la agrega al final — ver el `CASE` en
+`drizzle/0015_palabras_clave_egresos_manuales.sql`. **Lección para
+migraciones futuras que tocan `palabrasClave`** (tanto de
+`presupuestoClase` como de `tiposIngreso`): como el admin puede editarlas
+libremente desde la UI en cualquier momento, nunca pisar el valor directo
+en una migración — siempre sumar de forma idempotente como acá.
+
 ## Clasificación de ingresos + convenio de pago (desde ago 2026)
 
 En la reunión del 27/ago/2026 (sponsor + Christian), quedó claro que además

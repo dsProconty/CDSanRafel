@@ -4,9 +4,22 @@
 -- Los débitos automáticos (agua/luz/telefonía-internet/comisiones) ya
 -- tenían sus palabras clave correctas desde la 0011, acá solo se completan
 -- los subtipos de pagos manuales que todavía no tenían ninguna.
+--
+-- Cada UPDATE es aditivo e idempotente en vez de pisar el valor directo:
+-- como el admin puede editar `palabrasClave` a mano desde
+-- `/egresos/categorias` en cualquier momento (incluso antes de que esta
+-- migración se corra en producción, como pasó acá: "Honorarios de
+-- Administrador" ya tenía "administracion, administración" cargado a mano
+-- cuando se corrió esta migración), pisar el valor directo hubiera perdido
+-- esa edición. Si ya está vacío, lo pone directo; si ya contiene la
+-- palabra, no la duplica; si no, la agrega al final.
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'seguridad'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'seguridad'
+    WHEN pc."palabras_clave" ILIKE '%seguridad%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', seguridad'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -15,7 +28,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'caja chica'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'caja chica'
+    WHEN pc."palabras_clave" ILIKE '%caja chica%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', caja chica'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -24,7 +41,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'conserje'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'conserje'
+    WHEN pc."palabras_clave" ILIKE '%conserje%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', conserje'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -33,7 +54,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'bomba,cisterna'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'bomba,cisterna'
+    WHEN pc."palabras_clave" ILIKE '%bomba%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', bomba,cisterna'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -42,7 +67,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'jardin'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'jardin'
+    WHEN pc."palabras_clave" ILIKE '%jardin%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', jardin'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -51,7 +80,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'cobertor'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'cobertor'
+    WHEN pc."palabras_clave" ILIKE '%cobertor%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', cobertor'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -60,7 +93,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'honorario'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'honorario'
+    WHEN pc."palabras_clave" ILIKE '%honorario%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', honorario'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -69,7 +106,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'arreglo'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'arreglo'
+    WHEN pc."palabras_clave" ILIKE '%arreglo%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', arreglo'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
@@ -78,7 +119,11 @@ UPDATE "presupuesto_clase" pc
 --> statement-breakpoint
 
 UPDATE "presupuesto_clase" pc
-  SET "palabras_clave" = 'tag vehicular'
+  SET "palabras_clave" = CASE
+    WHEN pc."palabras_clave" IS NULL OR pc."palabras_clave" = '' THEN 'tag vehicular'
+    WHEN pc."palabras_clave" ILIKE '%tag vehicular%' THEN pc."palabras_clave"
+    ELSE pc."palabras_clave" || ', tag vehicular'
+  END
   FROM "presupuesto_subtipo" ps
   JOIN "presupuesto_tipo" pt ON pt."id" = ps."tipo_id"
   WHERE pc."subtipo_id" = ps."id"
