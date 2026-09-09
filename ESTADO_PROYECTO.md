@@ -171,6 +171,7 @@ tener varias casas**. Por eso la FK vive en `casas.usuarioId` y no en
 | `/referencias` | admin | Catálogo de `catalogoReferenciasBancarias` (qué referencia usa cada casa para pagar) — submenú "Catálogo → Referencias". Buscador (casa o referencia) + filtro por bloque A/B + orden, CRUD manual (además de que se sigue completando solo al resolver pagos en Cargar estado de cuenta). Una misma referencia puede repetirse en más de una casa a propósito (pagan desde la misma cuenta) — no hay unicidad global, solo por (casa, referencia). |
 | `/reportes` | admin + propietario | Lista de informes económicos mensuales (borrador/publicado), buscador + filtro + orden |
 | `/reportes/[id]` | admin | Editor: ingresos sugeridos editables, egresos con clasificación (tipo/subtipo/clase) editable por línea — "Pendiente de clasificar" si no matcheó autoclasificación y el admin no eligió una clase —, columna Comprobante (subir factura/recibo PDF/JPG/PNG por línea, "Incompleto" hasta subirlo; los débitos automáticos no lo necesitan); no se puede generar el PDF con egresos pendientes de clasificar o sin comprobante —, botón "Generar y publicar PDF" |
+| `/mantenimiento` | admin | Botón "Vaciar información" (desde sep 2026) para resetear el ambiente antes de una ronda de pruebas de QA — ver "Vaciado de ambiente para QA" más abajo. |
 | `/api/cron/generar-deudas-recurrentes` | cron diario (Vercel Cron, `vercel.json`) | Genera el período que corresponda de cada plan recurrente activo. Protegido con `CRON_SECRET` (header `Authorization: Bearer`) |
 
 Todas las tablas del sistema comparten los mismos componentes chicos
@@ -596,6 +597,61 @@ meses ya cerrados que nunca tuvieron este campo):
   independiente, aparte que simplemente diga cargar documentos") — quedó
   claro en la llamada que no es prioridad ("por no olvidarme te expliqué,
   pero no es prioridad").
+
+## Vaciado de ambiente para QA (desde sep 2026)
+
+Después de mandar el manual funcional al equipo de QA (Nico), Diego pidió
+poder resetear el ambiente repetidas veces mientras dura la ronda de
+pruebas ("vaciando, probando, vaciando") sin tener que pedirle a Claude que
+corra un DELETE manual cada vez — el sistema corre en un solo proyecto de
+Neon (no hay ambiente de staging separado), así que "vaciar" siempre
+significa borrar de la base de **producción**.
+
+Se agregó una pantalla nueva `/mantenimiento` (visible en el menú lateral,
+solo admin) con un botón "Vaciar información":
+
+- `src/app/mantenimiento/actions.ts` — `obtenerConteoAmbiente()` (cuenta
+  filas de cada tabla que se va a borrar, para mostrarlas antes de
+  confirmar) y `vaciarAmbienteQA()` (el borrado real). Ambas chequean
+  `rol === "admin"` como cualquier server action del sistema.
+- `src/app/mantenimiento/page.tsx` + `panel-vaciar.tsx` — muestra el
+  conteo por tabla, una lista explícita de "lo que nunca se toca", y el
+  botón destructivo.
+- Protección: **solo un `confirm()` del navegador** (mismo patrón que el
+  resto de acciones destructivas del sistema — anular una corrida de
+  deuda masiva, eliminar un usuario, etc.), no un modal de "escribí VACIAR
+  para confirmar" — decisión explícita de Diego, para no hacerlo más
+  pesado que el resto del sistema.
+- Ubicación: ítem de primer nivel "Mantenimiento" en el sidebar (no una
+  URL oculta) — también decisión explícita, prioriza que sea fácil de
+  encontrar para repetir el ciclo de pruebas por encima de esconderlo.
+
+Borra, en este orden (respeta las foreign keys, mismo orden ya validado a
+mano en la limpieza anterior de esta sesión):
+`movimiento_candidatos_casa` → `movimientos_bancarios` →
+`cargas_estado_cuenta` → `reporte_ingreso_linea` → `reporte_egreso_linea` →
+`reportes_financieros` → `deuda_recurrente_exclusion` → `deudas` →
+`deuda_masiva_lotes` → `deuda_recurrente`.
+
+**Nunca toca** (a propósito, ni se importan esas tablas en el archivo):
+`casas`, `usuarios`, `catalogo_referencias_bancarias`, ni ningún catálogo
+parametrizado (`tipos_expensa`, `conceptos_deuda`, `presupuesto_tipo/
+subtipo/clase`, `tipos_ingreso`) — mismo criterio ya acordado con Diego en
+la limpieza manual previa: los catálogos están parametrizados y no tienen
+data dummy, así que deben sobrevivir cualquier reseteo.
+
+**No requirió ninguna migración de schema** — usa únicamente `db.delete()`
+sobre tablas que ya existían, así que a diferencia de casi todo lo demás
+en este documento, este cambio no necesita correrse a mano en el editor
+SQL de Neon; queda activo apenas se despliega el código.
+
+**Riesgo a tener presente**: este botón queda permanentemente disponible
+en producción (no hay forma de restringirlo a un ambiente de pruebas
+separado, porque no existe uno). Solo lo puede ejecutar un usuario con
+rol admin, pero cualquier admin real (no solo QA) podría vaciar datos
+reales de la operación del condominio por error si lo confunde con otra
+acción — vale la pena que Christian/Diego lo tengan presente al dar
+acceso de admin a alguien nuevo.
 
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 

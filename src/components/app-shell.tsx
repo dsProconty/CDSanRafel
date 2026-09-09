@@ -1,4 +1,4 @@
-import { BarChart3, Building2, LayoutDashboard, Menu, Receipt, Tags, Upload } from "lucide-react";
+import { BarChart3, Building2, Eraser, LayoutDashboard, Menu, Receipt, Tags, Upload } from "lucide-react";
 
 import { auth } from "@/auth";
 import { BrandMark } from "@/components/brand-mark";
@@ -35,6 +35,11 @@ const NAV_ADMIN: SidebarNavItem[] = [
     href: "/reportes",
     label: "Informes económicos",
     icon: <BarChart3 className={ICON_CLASS} />,
+  },
+  {
+    href: "/mantenimiento",
+    label: "Mantenimiento",
+    icon: <Eraser className={ICON_CLASS} />,
   },
 ];
 
