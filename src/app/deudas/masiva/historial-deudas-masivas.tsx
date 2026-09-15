@@ -99,7 +99,7 @@ export function HistorialDeudasMasivas({ filas }: { filas: FilaLote[] }) {
           ))}
         </Select>
       </div>
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <div className="mt-4 max-h-[480px] overflow-auto rounded-lg border border-border">
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold text-muted-foreground">

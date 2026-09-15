@@ -291,11 +291,13 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                 <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                   {f.cedula || "—"}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="max-w-[220px] px-4 py-3">
                   {f.email ? (
                     <>
-                      <p className="text-foreground">{f.email}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-foreground" title={f.email}>
+                        {f.email}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
                         {[f.telefono, f.telefonoSecundario].filter(Boolean).join(" · ") ||
                           "Sin teléfono"}
                       </p>
@@ -306,12 +308,14 @@ export function CasasExplorer({ casas }: { casas: FilaCasa[] }) {
                 </td>
                 <td className="sticky right-0 bg-card px-4 py-3 group-hover:bg-accent/40">
                   <div className="flex items-center justify-end gap-3">
-                    <span
-                      title={formatoUltimoAcceso(f)}
-                      className="text-muted-foreground"
+                    <button
+                      type="button"
+                      onClick={() => setCasaAbierta(f.numero)}
+                      title={`Ver detalle · ${formatoUltimoAcceso(f)}`}
+                      className="text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <Eye className="h-4 w-4" />
-                    </span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setCasaEstadoCuenta(f.numero)}

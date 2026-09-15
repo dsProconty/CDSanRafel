@@ -224,7 +224,7 @@ export default async function CargarPage() {
               Sin pendientes.
             </p>
           ) : (
-            <div className="divide-y divide-border border-t border-border">
+            <div className="max-h-[420px] divide-y divide-border overflow-y-auto border-t border-border">
               {pendientes.map((mov) => (
                 <div key={mov.id} className="px-6 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -276,7 +276,7 @@ export default async function CargarPage() {
               Sin pendientes.
             </p>
           ) : (
-            <div className="divide-y divide-border border-t border-border">
+            <div className="max-h-[420px] divide-y divide-border overflow-y-auto border-t border-border">
               {sinCatalogar.map((mov) => (
                 <div key={mov.id} className="px-6 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -339,7 +339,7 @@ export default async function CargarPage() {
               Sin pendientes.
             </p>
           ) : (
-            <div className="divide-y divide-border border-t border-border">
+            <div className="max-h-[420px] divide-y divide-border overflow-y-auto border-t border-border">
               {ingresosPendientes.map((mov) => (
                 <div key={mov.id} className="px-6 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -409,7 +409,7 @@ export default async function CargarPage() {
               Sin pendientes.
             </p>
           ) : (
-            <div className="divide-y divide-border border-t border-border">
+            <div className="max-h-[420px] divide-y divide-border overflow-y-auto border-t border-border">
               {debitosPendientes.map((mov) => (
                 <div key={mov.id} className="px-6 py-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">

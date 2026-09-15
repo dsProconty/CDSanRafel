@@ -18,7 +18,7 @@ export function UploadForm() {
         name="archivo"
         accept=".xlsx"
         required
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
+        className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground file:transition-colors hover:file:bg-primary/90"
       />
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Procesando…" : "Cargar y procesar"}
