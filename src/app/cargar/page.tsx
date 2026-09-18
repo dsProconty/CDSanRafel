@@ -290,6 +290,28 @@ export default async function CargarPage() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {mov.referenciaCruda}
                   </p>
+                  {(mov.referencia2 || mov.referencia3 || mov.concepto) && (
+                    <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                      {mov.referencia2 && (
+                        <div className="flex gap-1">
+                          <dt className="font-medium">Ref. 2:</dt>
+                          <dd>{mov.referencia2}</dd>
+                        </div>
+                      )}
+                      {mov.referencia3 && (
+                        <div className="flex gap-1">
+                          <dt className="font-medium">Ref. 3:</dt>
+                          <dd>{mov.referencia3}</dd>
+                        </div>
+                      )}
+                      {mov.concepto && (
+                        <div className="flex gap-1">
+                          <dt className="font-medium">Concepto:</dt>
+                          <dd>{mov.concepto}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
                   <div className="mt-3">
                     <FormAsignarManual movimientoId={mov.id} />
                   </div>

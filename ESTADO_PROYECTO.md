@@ -680,8 +680,21 @@ código directo:
 
 Quedaron **OBS-001** (PDF de estado de cuenta — ver sección siguiente, ya
 resuelto) y **OBS-002** (qué hacer con pagos "sin catalogar" que no
-matchean ninguna casa — pendiente de que Christian defina la regla de
-negocio: ¿terceros, propietarios no registrados, otro caso?).
+matchean ninguna casa). Sobre OBS-002: Diego le consultó directamente a
+Nico (no hizo falta escalarlo a Christian) y la explicación fue que no
+siempre paga el titular registrado de la casa — paga un familiar, un
+tercero, etc. — y cada banco de origen formatea el depósito distinto
+(Guayaquil trae un número identificable; en Pichincha el número útil
+aparece como "número de cajero" en otro campo). Esto ya está cubierto por
+diseño: el catálogo soporta 1 casa : N referencias, y cada vez que se
+resuelve un pago "sin catalogar" a mano (`asignarManual` en
+`src/app/cargar/pendientes-actions.ts`) esa referencia nueva se aprende
+sola para la próxima vez. Lo único que se agregó fue una mejora de UX: la
+cola de "Sin catalogar" en `/cargar` ahora también muestra Referencia 2,
+Referencia 3 y Concepto del movimiento (antes solo mostraba la referencia
+cruda), para que quien lo resuelve tenga más contexto en pantalla sin
+depender tanto de ir a buscar la foto del comprobante aparte. No requirió
+migración — son columnas que ya existían en `movimientos_bancarios`.
 
 ## PDF de estado de cuenta por casa (OBS-001, sep 2026)
 
