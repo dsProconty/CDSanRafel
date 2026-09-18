@@ -653,6 +653,86 @@ reales de la operación del condominio por error si lo confunde con otra
 acción — vale la pena que Christian/Diego lo tengan presente al dar
 acceso de admin a alguien nuevo.
 
+## Ronda de QA de Nico (sep 2026)
+
+Nico (QA funcional) probó el sistema con el ambiente ya vaciado y reportó
+12 hallazgos por Excel (BUG-001 a BUG-004, OBS-001 a OBS-004, más 3 casos
+ya aprobados sin observaciones). Se resolvieron los que eran arreglo de
+código directo:
+
+- **BUG-001** — el correo en `/casas` se sobreponía a la columna de
+  Acciones con correos largos. Se truncó con `title` para ver el completo
+  al pasar el mouse (`src/app/casas/casas-explorer.tsx`).
+- **BUG-002** — el ícono de "ojo" en `/casas` no hacía nada (era decorativo,
+  solo mostraba el último acceso como tooltip). Ahora abre el modal de
+  detalle de la casa, igual que el ícono de editar.
+- **BUG-003** — el botón "Seleccionar archivo" en `/cargar` tenía muy poco
+  contraste (`bg-secondary` casi igual al fondo). Se cambió a `bg-primary`
+  para que se vea igual de prominente que "Cargar y procesar".
+- **BUG-004** — el sistema ya evitaba duplicar movimientos al re-subir un
+  Excel ya cargado (dedupe por `documento`), pero no era evidente para el
+  usuario. Se agregó un aviso explícito en `/cargar` (rojo si TODO el
+  archivo ya estaba cargado, ámbar si fue solo una parte).
+- **OBS-003 / OBS-004** — las listas de resultados en `/cargar` (colas de
+  revisión/clasificación) y el historial de corridas en `/deudas/masiva`
+  ahora tienen scroll interno (`max-h-[...] overflow-auto`) en vez de
+  estirar toda la página.
+
+Quedaron **OBS-001** (PDF de estado de cuenta — ver sección siguiente, ya
+resuelto) y **OBS-002** (qué hacer con pagos "sin catalogar" que no
+matchean ninguna casa — pendiente de que Christian defina la regla de
+negocio: ¿terceros, propietarios no registrados, otro caso?).
+
+## PDF de estado de cuenta por casa (OBS-001, sep 2026)
+
+Nico notó que no había forma de exportar a PDF el estado de cuenta de una
+casa (la vista en pantalla — modal de `/casas` — ya existía, pero no era
+descargable). Diego pidió resolverlo de las dos formas: que el propietario
+pueda descargar el suyo desde su sesión, y que el admin también pueda
+generarlo desde su cuenta. El contenido del PDF quedó a criterio de Claude;
+se armó con:
+
+- Datos de la casa (número, bloque, propietario) y del titular de acceso
+  (cédula, correo, teléfono).
+- Resumen: total facturado, total pagado, saldo pendiente (o "a favor" si
+  está al día) — mismos colores que el informe económico mensual para que
+  se sienta parte del mismo sistema.
+- Detalle de movimientos: mismo cálculo tipo libro mayor que ya usaba el
+  modal en pantalla (`calcularEstadoCuenta` — FIFO de pagos contra deudas
+  ordenadas por fecha), pero en orden cronológico ascendente (más parecido
+  a un estado de cuenta bancario real) con fila de saldo pendiente al pie.
+- Referencias bancarias registradas para esa casa (banco + referencia) —
+  información que ya se maneja en el sistema y le sirve directamente al
+  propietario para saber con qué cuenta pagar la próxima vez.
+- Pie de página con fecha de generación y una aclaración de que es un
+  documento informativo, no un comprobante contable oficial (se genera al
+  vuelo con la data del momento, no se archiva como los informes
+  mensuales).
+
+Implementación:
+
+- `src/lib/estado-cuenta.ts` — se extrajo el cálculo `calcularEstadoCuenta`
+  que antes vivía solo dentro de `casas/[numero]/actions.ts`, para poder
+  reusarlo también en el PDF sin duplicar la lógica.
+- `src/lib/estado-cuenta-datos.ts` — arma toda la data para el PDF (casa,
+  titular, referencias, filas, totales). No hace el chequeo de permisos —
+  eso lo hace quien la llama.
+- `src/lib/estado-cuenta-pdf.tsx` — el documento con `@react-pdf/renderer`,
+  mismos colores/marca que `reporte-pdf.tsx` (el informe mensual).
+- `src/app/api/estado-cuenta/[numero]/route.ts` — un GET que genera el PDF
+  al vuelo (no se guarda en Vercel Blob, a diferencia de los informes
+  mensuales, porque esta data cambia todo el tiempo y no tiene sentido
+  archivar una versión vieja). Verifica sesión: admin puede pedir cualquier
+  casa, propietario solo la casa donde `casas.usuarioId` sea su propio id
+  — devuelve 401/403 si no corresponde.
+- Botón "Descargar PDF" agregado en el modal de estado de cuenta de
+  `/casas` (admin) y en la tarjeta de cada casa del dashboard del
+  propietario (`src/app/page.tsx`) — un link `<a target="_blank">` al
+  endpoint, se abre en una pestaña nueva como cualquier PDF.
+
+**No requirió ninguna migración** — es puro código de lectura sobre tablas
+que ya existían.
+
 ## Limitaciones conocidas / lo que falta (ver también el informe "Avance SGAI")
 
 - **No hay cron para la carga del Excel del banco** (seguía siendo manual,

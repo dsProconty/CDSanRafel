@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { Search, X } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -93,14 +93,27 @@ export function EstadoCuentaModal({
             </h2>
             {data && <Badge variant="secondary">Bloque {data.casa.bloque}</Badge>}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {data && (
+              <a
+                href={`/api/estado-cuenta/${data.casa.numero}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Descargar PDF
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">

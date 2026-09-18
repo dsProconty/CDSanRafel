@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Banknote,
   CheckCircle2,
+  Download,
   TrendingUp,
   UserX,
 } from "lucide-react";
@@ -330,6 +331,15 @@ function TarjetaCasa({
           </dd>
         </div>
       </dl>
+      <a
+        href={`/api/estado-cuenta/${casa.numero}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      >
+        <Download className="h-3.5 w-3.5" />
+        Descargar estado de cuenta (PDF)
+      </a>
     </div>
   );
 }
