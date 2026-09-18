@@ -30,6 +30,22 @@ export function UploadForm() {
         </p>
       )}
 
+      {resultado?.ok && resultado.resumen.duplicados > 0 && (
+        <p
+          className={`rounded-md px-3 py-2 text-sm ${
+            resultado.resumen.duplicados === resultado.resumen.totalFilas
+              ? "bg-destructive/10 text-destructive"
+              : "bg-warning/10 text-warning"
+          }`}
+        >
+          {resultado.resumen.duplicados === resultado.resumen.totalFilas
+            ? "Este archivo ya había sido cargado antes: las " +
+              resultado.resumen.totalFilas +
+              " filas ya existían y no se agregó ningún dato nuevo."
+            : `${resultado.resumen.duplicados} de ${resultado.resumen.totalFilas} filas ya estaban cargadas de una carga anterior y se omitieron para no duplicar información.`}
+        </p>
+      )}
+
       {resultado?.ok && (
         <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="Créditos en el archivo" value={resultado.resumen.creditos} />
