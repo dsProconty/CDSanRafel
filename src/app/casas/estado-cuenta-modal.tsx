@@ -132,7 +132,7 @@ export function EstadoCuentaModal({
                   <p className="text-lg font-semibold text-foreground">
                     ${data.totalFacturado.toFixed(2)}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Total facturado</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Total deuda</p>
                 </div>
                 <div className="rounded-lg border border-border bg-background px-4 py-3">
                   <p className="text-lg font-semibold text-foreground">

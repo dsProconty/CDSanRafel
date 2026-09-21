@@ -134,7 +134,7 @@ function EstadoCuentaDocument({ data }: { data: EstadoCuentaPdfData }) {
         <View style={styles.balanceRow}>
           <View style={[styles.balanceCard, { backgroundColor: "#eaf1f5" }]}>
             <Text style={[styles.balanceValue, { color: AZUL }]}>{money(data.totalFacturado)}</Text>
-            <Text style={styles.balanceLabel}>Total facturado</Text>
+            <Text style={styles.balanceLabel}>Total deuda</Text>
           </View>
           <View style={[styles.balanceCard, { backgroundColor: "#e9f5ee" }]}>
             <Text style={[styles.balanceValue, { color: VERDE }]}>{money(data.totalPagado)}</Text>
