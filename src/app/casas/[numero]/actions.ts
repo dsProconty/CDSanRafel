@@ -14,7 +14,8 @@ import {
   tiposExpensa,
   usuarios,
 } from "@/db/schema";
-import { calcularEstadoCuenta, type FilaEstadoCuenta } from "@/lib/estado-cuenta";
+import type { FilaEstadoCuenta } from "@/lib/estado-cuenta";
+import { obtenerDatosEstadoCuenta } from "@/lib/estado-cuenta-datos";
 
 export type { FilaEstadoCuenta } from "@/lib/estado-cuenta";
 
@@ -151,6 +152,9 @@ export async function obtenerDetalleCasa(
 export type EstadoCuentaCasaData = {
   casa: { numero: string; bloque: string };
   filas: FilaEstadoCuenta[];
+  totalFacturado: number;
+  totalPagado: number;
+  saldo: number;
 };
 
 export async function obtenerEstadoCuentaCasa(
@@ -158,41 +162,17 @@ export async function obtenerEstadoCuentaCasa(
 ): Promise<EstadoCuentaCasaData | null> {
   await requireAdmin();
 
-  const [casa] = await db
-    .select({ id: casas.id, numero: casas.numero, bloque: casas.bloque })
-    .from(casas)
-    .where(eq(casas.numero, numero))
-    .limit(1);
-  if (!casa) return null;
-
-  const listaDeudas = await db
-    .select({
-      id: deudas.id,
-      monto: deudas.monto,
-      fecha: deudas.fecha,
-      descripcion: deudas.descripcion,
-      tipo: tiposExpensa.nombre,
-    })
-    .from(deudas)
-    .innerJoin(tiposExpensa, eq(tiposExpensa.id, deudas.tipoExpensaId))
-    .where(eq(deudas.casaId, casa.id));
-
-  const listaPagos = await db
-    .select({
-      documento: movimientosBancarios.documento,
-      fecha: movimientosBancarios.fechaTransaccion,
-      monto: movimientosBancarios.monto,
-    })
-    .from(movimientosBancarios)
-    .where(eq(movimientosBancarios.casaId, casa.id));
-
-  const filas = calcularEstadoCuenta(listaDeudas, listaPagos).sort((a, b) =>
-    b.fechaEmision.localeCompare(a.fechaEmision)
-  );
+  const datos = await obtenerDatosEstadoCuenta(numero);
+  if (!datos) return null;
 
   return {
-    casa: { numero: casa.numero, bloque: casa.bloque },
-    filas,
+    casa: { numero: datos.casa.numero, bloque: datos.casa.bloque },
+    // Más reciente primero en pantalla (la PDF, en cambio, va cronológico
+    // ascendente porque se lee como un estado de cuenta bancario formal).
+    filas: [...datos.filas].sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision)),
+    totalFacturado: datos.totalFacturado,
+    totalPagado: datos.totalPagado,
+    saldo: datos.saldo,
   };
 }
 

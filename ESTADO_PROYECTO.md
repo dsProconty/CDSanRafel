@@ -698,6 +698,34 @@ justamente la definición de "casas duplicadas por referencia".
 **No requirió migración** — usa el enum `estado_movimiento` y las
 columnas existentes, sin agregar ningún valor nuevo.
 
+## Validación de escenarios de pago (sep 2026)
+
+Nico probó en producción los 2 escenarios que Diego le pidió en la
+llamada (ver sección anterior):
+
+- **Escenario A** (deuda de alícuota $60 + deuda de cancha $20, pago de
+  $80): funcionó correctamente — el sistema repartió el pago FIFO entre
+  las 2 deudas y ambas quedaron "Pagada" con el mismo comprobante. Sin
+  cambios necesarios.
+- **Escenario B** (solo deuda de alícuota $60, pago de $80 — $20 de
+  más sin ninguna deuda que los cubra): el cálculo interno del saldo ya
+  era correcto (`calcularEstadoCuenta` deja la deuda de $60 "Pagada" y
+  los $20 sobrantes simplemente no se aplican a nada), pero **no se veía
+  en ningún lado** — el modal "Estado de cuenta" de `/casas` solo mostraba
+  la tabla de deudas, sin ningún resumen de saldo. Se agregó un resumen de
+  3 datos arriba de la tabla (Total facturado / Total pagado / Saldo a
+  favor o pendiente, mismo criterio de color que ya usa el dashboard del
+  propietario) para que un sobrepago se vea explícito como "Saldo a
+  favor" en vez de quedar implícito.
+  - `EstadoCuentaCasaData` (`src/app/casas/[numero]/actions.ts`) ahora
+    incluye `totalFacturado`/`totalPagado`/`saldo` — se aprovechó para
+    eliminar una consulta duplicada: `obtenerEstadoCuentaCasa` ahora
+    delega en `obtenerDatosEstadoCuenta` (`src/lib/estado-cuenta-datos.ts`,
+    el mismo que ya alimentaba el PDF de OBS-001) en vez de repetir las
+    mismas queries de deudas/pagos con su propio cálculo.
+
+No requirió migración.
+
 ## Ronda de QA de Nico (sep 2026)
 
 Nico (QA funcional) probó el sistema con el ambiente ya vaciado y reportó

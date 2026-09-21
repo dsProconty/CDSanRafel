@@ -127,6 +127,31 @@ export function EstadoCuentaModal({
             </p>
           ) : (
             <div>
+              <div className="mb-4 grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-border bg-background px-4 py-3">
+                  <p className="text-lg font-semibold text-foreground">
+                    ${data.totalFacturado.toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Total facturado</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background px-4 py-3">
+                  <p className="text-lg font-semibold text-foreground">
+                    ${data.totalPagado.toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Total pagado</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background px-4 py-3">
+                  <p
+                    className={`text-lg font-semibold ${data.saldo <= 0 ? "text-success" : "text-destructive"}`}
+                  >
+                    ${Math.abs(data.saldo).toFixed(2)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {data.saldo <= 0 ? "Saldo a favor" : "Saldo pendiente"}
+                  </p>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative w-56">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
