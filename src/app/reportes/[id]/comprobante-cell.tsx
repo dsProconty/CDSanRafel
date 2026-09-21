@@ -35,7 +35,11 @@ export function ComprobanteCell({
           className="text-xs text-muted-foreground underline decoration-dotted hover:text-foreground disabled:opacity-50"
           onClick={() =>
             startTransition(async () => {
-              await alternarRequiereComprobante(lineaId, reporteId, true);
+              const resultado = await alternarRequiereComprobante(lineaId, reporteId, true);
+              if (!resultado.ok) {
+                alert(resultado.error);
+                return;
+              }
               router.refresh();
             })
           }
@@ -90,7 +94,11 @@ export function ComprobanteCell({
           formData.set("archivo", archivo);
           startTransition(async () => {
             const resultado = await subirComprobanteEgreso(lineaId, reporteId, formData);
-            if (resultado.ok) router.refresh();
+            if (!resultado.ok) {
+              alert(resultado.error);
+              return;
+            }
+            router.refresh();
           });
         }}
       />
@@ -100,7 +108,11 @@ export function ComprobanteCell({
         className="text-xs text-muted-foreground underline decoration-dotted hover:text-foreground disabled:opacity-50"
         onClick={() =>
           startTransition(async () => {
-            await alternarRequiereComprobante(lineaId, reporteId, false);
+            const resultado = await alternarRequiereComprobante(lineaId, reporteId, false);
+            if (!resultado.ok) {
+              alert(resultado.error);
+              return;
+            }
             router.refresh();
           })
         }
