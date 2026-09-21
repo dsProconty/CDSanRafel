@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
 import { FileCheck2, Upload } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +12,23 @@ import {
 export function ComprobanteCell({
   lineaId,
   reporteId,
-  requiereComprobante,
-  comprobanteUrl,
+  requiereComprobante: requiereComprobanteInicial,
+  comprobanteUrl: comprobanteUrlInicial,
 }: {
   lineaId: number;
   reporteId: number;
   requiereComprobante: boolean;
   comprobanteUrl: string | null;
 }) {
-  const router = useRouter();
+  // Estado local propio (en vez de depender de router.refresh()): el padre
+  // (EditorReporte) guarda las líneas en su propio estado de React que solo
+  // se inicializa una vez desde el server component — un refresh no lo
+  // vuelve a sincronizar, así que esta celda quedaba "congelada" mostrando
+  // el valor viejo aunque la escritura en la base sí funcionara (hallazgo
+  // de QA, sep 2026). Acá se actualiza de forma optimista apenas la action
+  // confirma éxito.
+  const [requiereComprobante, setRequiereComprobante] = useState(requiereComprobanteInicial);
+  const [comprobanteUrl, setComprobanteUrl] = useState(comprobanteUrlInicial);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
 
@@ -40,7 +47,7 @@ export function ComprobanteCell({
                 alert(resultado.error);
                 return;
               }
-              router.refresh();
+              setRequiereComprobante(true);
             })
           }
         >
@@ -98,7 +105,7 @@ export function ComprobanteCell({
               alert(resultado.error);
               return;
             }
-            router.refresh();
+            setComprobanteUrl(resultado.url);
           });
         }}
       />
@@ -113,7 +120,7 @@ export function ComprobanteCell({
               alert(resultado.error);
               return;
             }
-            router.refresh();
+            setRequiereComprobante(false);
           })
         }
       >

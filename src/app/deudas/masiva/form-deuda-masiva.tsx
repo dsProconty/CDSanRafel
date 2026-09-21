@@ -52,6 +52,24 @@ export function FormDeudaMasiva({
     });
   }
 
+  // Operan sobre la lista filtrada (no sobre todas las casas), para poder
+  // ej. buscar "B" y deseleccionar solo el Bloque B sin tocar lo demás.
+  function seleccionarTodo() {
+    setExcluidas((prev) => {
+      const next = new Set(prev);
+      for (const c of casasFiltradas) next.delete(c.id);
+      return next;
+    });
+  }
+
+  function deseleccionarTodo() {
+    setExcluidas((prev) => {
+      const next = new Set(prev);
+      for (const c of casasFiltradas) next.add(c.id);
+      return next;
+    });
+  }
+
   function elegirConcepto(id: string) {
     setConceptoId(id);
     const concepto = conceptos.find((c) => c.id === Number(id));
@@ -181,6 +199,22 @@ export function FormDeudaMasiva({
             placeholder="Buscar casa…"
             className="mb-3"
           />
+          <div className="mb-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={seleccionarTodo}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Seleccionar todo
+            </button>
+            <button
+              type="button"
+              onClick={deseleccionarTodo}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Deseleccionar todo
+            </button>
+          </div>
           <div className="grid max-h-56 grid-cols-3 gap-x-3 gap-y-2 overflow-y-auto sm:grid-cols-4">
             {casasFiltradas.map((c) => (
               <label
@@ -202,15 +236,6 @@ export function FormDeudaMasiva({
               </p>
             )}
           </div>
-          {excluidas.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setExcluidas(new Set())}
-              className="mt-3 text-xs font-medium text-primary hover:underline"
-            >
-              Incluir todas de nuevo
-            </button>
-          )}
         </div>
       </details>
 

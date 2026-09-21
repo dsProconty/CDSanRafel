@@ -877,6 +877,42 @@ commitear — el driver de producción sigue siendo `neon-http`.
 
 **No requirió migración** — es un cambio puramente de CSS/layout.
 
+## Hallazgos 13 y 14 de la ronda de QA de Nico (sep 2026)
+
+Nico mandó dos hallazgos nuevos por Excel:
+
+- **Hallazgo 13 (Alto) — Informes económicos → Egresos**: al tocar
+  "No requiere"/"Sí requiere" en la columna Comprobante, o al subir un
+  archivo, el estado visual no cambiaba (seguía mostrando "Incompleto")
+  y no había ningún mensaje de éxito/error. La causa raíz: el editor del
+  informe (`EditorReporte`) guarda las líneas en su propio estado local de
+  React (patrón "editor tipo spreadsheet", ver convenciones más arriba),
+  inicializado una sola vez desde el server component. El `router.
+  refresh()` que llamaba `ComprobanteCell` sí traía datos frescos del
+  servidor, pero `EditorReporte` nunca releía esos props nuevos hacia su
+  estado local — la fila quedaba "congelada" con el valor viejo aunque la
+  escritura en la base sí funcionara. Se corrigió haciendo que
+  `ComprobanteCell` (`src/app/reportes/[id]/comprobante-cell.tsx`) maneje
+  su propio estado local optimista: apenas la action confirma éxito,
+  actualiza el badge al instante sin depender de que el padre se
+  resincronice. De paso ya quedó resuelto el aviso de éxito/error: el
+  cambio de badge ("Incompleto" → "No requiere"/"Cargado") **es** la
+  confirmación visual, y los errores ya se mostraban con `alert()` desde
+  el hallazgo de UX anterior de esta misma sesión. Validado con un
+  servidor local real (Playwright): se confirmó que el badge cambia al
+  toque, sin refrescar la página.
+- **Hallazgo 14 (Bajo) — Deudas masivas**: no había forma de
+  seleccionar/deseleccionar todas las casas de una — solo existía
+  "Incluir todas de nuevo" cuando ya había exclusiones. Se agregaron
+  botones explícitos **"Seleccionar todo"** y **"Deseleccionar todo"** en
+  `src/app/deudas/masiva/form-deuda-masiva.tsx`, siempre visibles arriba
+  de la lista. Operan sobre la lista ya filtrada por el buscador (no
+  sobre las 159 casas siempre) — así se puede buscar "B" y deseleccionar
+  solo el Bloque B sin tocar el resto. Validado con Playwright: ambos
+  botones marcan/desmarcan los checkboxes correctamente.
+
+No requirió migración — ambos son cambios de frontend.
+
 ## Convenciones de git en este repo (para la sesión nueva)
 
 - Rama de trabajo de la sesión anterior: `claude/migracion-usuario-correo-casas-h1x6hx`
