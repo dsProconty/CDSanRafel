@@ -65,6 +65,113 @@ export async function asignarCandidato(movimientoId: number, casaId: number) {
   revalidatePath("/");
 }
 
+export type DividirEntreCasasResultado = { ok: true } | { ok: false; error: string };
+
+// Cuando la misma referencia matchea varias casas porque una sola persona
+// paga por todas ellas desde una cuenta compartida (ej. dueño con 3
+// unidades que deposita un monto que cubre las 3 alícuotas de una sola
+// vez), reparte el monto del movimiento en partes iguales entre esas
+// casas en vez de forzar al admin a elegir una sola (pedido real del
+// cliente, llamada sep 2026 con Nico — caso "Freire Palomino").
+//
+// El movimiento original NUNCA se borra (se deja en $0, `estado` pasa a
+// "matched" para que salga de la cola) — así, si el mismo Excel se vuelve
+// a subir, el dedupe por `documento` lo sigue reconociendo como ya
+// procesado. Se crean N movimientos nuevos, uno por casa, con el mismo
+// `documento` sufijado (-1, -2, ...) para no violar el índice único.
+export async function dividirEntreCasas(
+  movimientoId: number
+): Promise<DividirEntreCasasResultado> {
+  await requireAdmin();
+
+  const [movimiento] = await db
+    .select({
+      documento: movimientosBancarios.documento,
+      fechaTransaccion: movimientosBancarios.fechaTransaccion,
+      fechaContable: movimientosBancarios.fechaContable,
+      monto: movimientosBancarios.monto,
+      referenciaCruda: movimientosBancarios.referenciaCruda,
+      referencia2: movimientosBancarios.referencia2,
+      referencia3: movimientosBancarios.referencia3,
+      concepto: movimientosBancarios.concepto,
+      agencia: movimientosBancarios.agencia,
+      estado: movimientosBancarios.estado,
+    })
+    .from(movimientosBancarios)
+    .where(eq(movimientosBancarios.id, movimientoId))
+    .limit(1);
+
+  if (!movimiento) {
+    return { ok: false, error: "El movimiento ya no existe." };
+  }
+  if (movimiento.estado !== "pendiente_revision") {
+    return { ok: false, error: "Este movimiento ya fue resuelto." };
+  }
+
+  const candidatos = await db
+    .select({ casaId: movimientoCandidatosCasa.casaId })
+    .from(movimientoCandidatosCasa)
+    .where(eq(movimientoCandidatosCasa.movimientoId, movimientoId));
+
+  if (candidatos.length < 2) {
+    return { ok: false, error: "Este movimiento no tiene varias casas candidatas." };
+  }
+
+  const casaIds = candidatos.map((c) => c.casaId).sort((a, b) => a - b);
+  const n = casaIds.length;
+  // Reparto en centavos para no arrastrar error de punto flotante — el
+  // resto (si el monto no es exactamente divisible) va a las primeras casas.
+  const totalCentavos = Math.round(Number(movimiento.monto) * 100);
+  const baseCentavos = Math.floor(totalCentavos / n);
+  const restoCentavos = totalCentavos - baseCentavos * n;
+
+  const texto = textoBusquedaIngreso({
+    referencia: movimiento.referenciaCruda,
+    referencia2: movimiento.referencia2,
+    referencia3: movimiento.referencia3,
+    concepto: movimiento.concepto,
+  });
+
+  const partes = await Promise.all(
+    casaIds.map(async (casaId, i) => {
+      const centavos = baseCentavos + (i < restoCentavos ? 1 : 0);
+      const monto = centavos / 100;
+      const tipoIngresoId = await clasificarIngresoAutomatico(casaId, monto, texto, movimientoId);
+      return { casaId, monto, tipoIngresoId };
+    })
+  );
+
+  await db.batch([
+    db
+      .update(movimientosBancarios)
+      .set({ monto: "0.00", estado: "matched" })
+      .where(eq(movimientosBancarios.id, movimientoId)),
+    db
+      .delete(movimientoCandidatosCasa)
+      .where(eq(movimientoCandidatosCasa.movimientoId, movimientoId)),
+    db.insert(movimientosBancarios).values(
+      partes.map((p, i) => ({
+        documento: `${movimiento.documento}-${i + 1}`,
+        fechaTransaccion: movimiento.fechaTransaccion,
+        fechaContable: movimiento.fechaContable,
+        monto: p.monto.toFixed(2),
+        referenciaCruda: movimiento.referenciaCruda,
+        referencia2: movimiento.referencia2,
+        referencia3: movimiento.referencia3,
+        concepto: movimiento.concepto,
+        agencia: movimiento.agencia,
+        casaId: p.casaId,
+        tipoIngresoId: p.tipoIngresoId,
+        estado: "matched" as const,
+      }))
+    ),
+  ]);
+
+  revalidatePath("/cargar");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 export type AsignarManualResultado = { ok: true } | { ok: false; error: string };
 
 // Cola "sin catalogar": el admin busca la casa a mano. Además de confirmar

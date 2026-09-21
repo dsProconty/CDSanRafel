@@ -19,6 +19,7 @@ import { obtenerPresupuesto } from "../egresos/categorias/actions";
 import { descripcionEgresoBancario } from "@/lib/clasificar-egreso";
 import { construirOpcionesClase } from "@/lib/opciones-clase";
 import { BotonCandidato } from "./boton-candidato";
+import { BotonDividir } from "./boton-dividir";
 import { FormAsignarManual } from "./form-asignar-manual";
 import { HistorialCargas, type FilaHistorial } from "./historial-cargas";
 import { SelectorClaseDebito } from "./selector-clase-debito";
@@ -247,6 +248,13 @@ export default async function CargarPage() {
                         numero={c.numero}
                       />
                     ))}
+                    {(candidatosPorMovimiento.get(mov.id) ?? []).length > 1 && (
+                      <BotonDividir
+                        movimientoId={mov.id}
+                        monto={Number(mov.monto)}
+                        numeros={(candidatosPorMovimiento.get(mov.id) ?? []).map((c) => c.numero)}
+                      />
+                    )}
                   </div>
                 </div>
               ))}

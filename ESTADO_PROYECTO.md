@@ -653,6 +653,51 @@ reales de la operación del condominio por error si lo confunde con otra
 acción — vale la pena que Christian/Diego lo tengan presente al dar
 acceso de admin a alguien nuevo.
 
+## Dividir un pago entre varias casas con la misma referencia (sep 2026)
+
+En una llamada de Diego con Nico (QA) validando escenarios reales, salió
+el caso "Freire Palomino": una persona con 3 casas (70B, 78B, 75A) que
+pagan las 3 alícuotas de una sola vez desde la misma cuenta — la
+referencia catalogada es la misma para las 3, así que cuando deposita
+$180, el sistema ya detectaba correctamente que la referencia matchea las
+3 casas (cola "Varias casas coinciden" en `/cargar`), pero solo dejaba
+asignar el pago completo a UNA casa elegida. Nico lo resolvía a mano en
+el sistema viejo, reusando el mismo número de comprobante para 3 abonos
+de $60 cada uno.
+
+Se agregó un botón **"Dividir entre N casas"** en esa misma cola, al lado
+de los botones existentes de "Asignar a [casa]" — no hizo falta ninguna
+detección nueva, la cola ya agrupa exactamente los casos donde una sola
+referencia matchea > 1 casa (`movimiento_candidatos_casa`), que es
+justamente la definición de "casas duplicadas por referencia".
+
+- `dividirEntreCasas` (`src/app/cargar/pendientes-actions.ts`): reparte el
+  monto en partes iguales entre las N casas candidatas (en centavos, para
+  no arrastrar error de punto flotante — el resto de centavos, si el
+  monto no es exactamente divisible, va a las primeras casas). Cada casa
+  recibe su clasificación de ingreso normal vía `clasificarIngresoAutomatico`.
+- **El movimiento original nunca se borra** — se deja en `monto = 0.00` y
+  `estado = "matched"` (para que salga de la cola), pero conserva su
+  `documento` original intacto. Esto es clave para no romper el dedupe:
+  si el mismo Excel se vuelve a subir, `procesarMovimientosBancarios`
+  sigue reconociendo ese `documento` como ya cargado. Se crean N
+  movimientos nuevos, uno por casa, con el mismo `documento` sufijado
+  (`-1`, `-2`, `-3`...) para no violar el índice único de la columna.
+  Dejarlo en $0 en vez de borrarlo también evita que se cuente dos veces
+  en `sugerirLineasIngreso` (que suma créditos por rango de fecha sin
+  filtrar por casa) si no se excluyera correctamente.
+- `BotonDividir` (`src/app/cargar/boton-dividir.tsx`): pide confirmación
+  con `confirm()` del navegador (mismo patrón que el resto del sistema)
+  mostrando el monto por casa antes de ejecutar.
+- Validado corriendo la transacción real (update + delete + insert) contra
+  un Postgres local: la suma total no cambia ($180 antes y después), el
+  documento original sigue siendo reconocible para el dedupe, y el reparto
+  de centavos cuadra exacto incluso cuando el monto no es divisible parejo
+  entre las casas (ej. $100 entre 3 → $33.34 + $33.33 + $33.33).
+
+**No requirió migración** — usa el enum `estado_movimiento` y las
+columnas existentes, sin agregar ningún valor nuevo.
+
 ## Ronda de QA de Nico (sep 2026)
 
 Nico (QA funcional) probó el sistema con el ambiente ya vaciado y reportó
