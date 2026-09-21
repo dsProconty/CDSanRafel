@@ -61,7 +61,7 @@ export async function AppShell({
   const userLabel = user.email ?? (esAdmin ? "Administrador" : "Propietario");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {esAdmin && (
         <>
           <input
@@ -73,7 +73,7 @@ export async function AppShell({
             htmlFor="sidebar-toggle"
             className="fixed inset-0 z-30 hidden bg-black/50 peer-checked:block lg:hidden"
           />
-          <aside className="fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full shrink-0 flex-col bg-sidebar transition-transform duration-200 peer-checked:translate-x-0 lg:static lg:translate-x-0">
+          <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-60 -translate-x-full shrink-0 flex-col overflow-y-auto bg-sidebar transition-transform duration-200 peer-checked:translate-x-0 lg:static lg:translate-x-0">
             <div className="flex items-center gap-2.5 px-5 py-5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">
                 <BrandMark className="h-5 w-5 text-primary-foreground" />
@@ -90,8 +90,8 @@ export async function AppShell({
         </>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 lg:px-6">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="shrink-0 flex items-center justify-between border-b border-border bg-card px-4 py-3 lg:px-6">
           <div className="flex items-center gap-3">
             {esAdmin && (
               <label
@@ -129,7 +129,7 @@ export async function AppShell({
             <LogoutButton />
           </div>
         </header>
-        <main className="flex-1 bg-background">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-background">{children}</main>
       </div>
     </div>
   );

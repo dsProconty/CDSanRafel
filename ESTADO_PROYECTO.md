@@ -837,6 +837,46 @@ que ya existían.
   PDF original del cliente (que tenía su logo real de flor, que no
   reconstruí por no tener el asset).
 
+## Sidebar y header fijos (sep 2026)
+
+Diego pidió una mejora de UX transversal: en pantallas con mucha data
+(el caso que mencionó fue `/cargar`, pero aplica a cualquier página
+larga), el menú lateral y el header se iban con el scroll de la página —
+para cambiar de sección había que subir todo el scroll de nuevo.
+
+Se cambió el layout en `src/components/app-shell.tsx` para que el
+scroll quede contenido **solo** en el área de contenido (`<main>`), no en
+toda la página:
+
+- El contenedor raíz pasó de `min-h-screen` a `h-screen overflow-hidden`
+  (ocupa exactamente el alto de la ventana y no permite que el documento
+  completo scrollee).
+- La columna derecha (header + main) también es `overflow-hidden`; el
+  `<header>` es `shrink-0` (altura fija, nunca se comprime ni se scrollea)
+  y el `<main>` es `flex-1 overflow-y-auto` — es el único elemento que
+  scrollea.
+- El `<aside>` (sidebar) ahora tiene `h-screen` explícito y
+  `overflow-y-auto` propio (por si el menú alguna vez crece más que la
+  pantalla), pero como el contenedor raíz ya no scrollea, en desktop
+  (`lg:static`) se queda fijo en pantalla sin necesidad de `position:
+  sticky` ni `fixed`.
+- El comportamiento mobile (menú hamburguesa con overlay, controlado por
+  el checkbox `#sidebar-toggle`) no se tocó — sigue funcionando igual.
+
+**Validado con un servidor local real** (no solo `next build`): se
+apuntó temporalmente `src/db/index.ts` a Postgres local vía
+`drizzle-orm/node-postgres` (en vez del driver `neon-http`, que no
+funciona contra una base que no sea Neon), se sembraron 25 movimientos
+"sin catalogar" para que `/cargar` quedara más alta que la ventana, y se
+verificó con Playwright que: (a) el `<body>`/documento nunca crece más
+allá del alto de la ventana, (b) al scrollear el contenido hasta el
+final, el header y el sidebar no se mueven ni un píxel, y (c) el menú
+hamburguesa en mobile se sigue abriendo y cerrando bien. El cambio a
+`src/db/index.ts` fue solo para esta prueba local y se revirtió antes de
+commitear — el driver de producción sigue siendo `neon-http`.
+
+**No requirió migración** — es un cambio puramente de CSS/layout.
+
 ## Convenciones de git en este repo (para la sesión nueva)
 
 - Rama de trabajo de la sesión anterior: `claude/migracion-usuario-correo-casas-h1x6hx`
